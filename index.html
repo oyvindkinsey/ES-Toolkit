@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+    <head>
+        <title>JsParse</title>
+    </head>
+    <body>
+    <script id="src">
+        // single line comment
+        /*
+         Multi line comment
+         */
+        "tests\"tringfsdf";
+        334
+        1234.3
+        .34
+        344. +
+        22;
+        098
+        0x320;
+        var a = 1;
+        var b;
+        /abc\/dd/dg
+        a++;
+        {
+            if (12 == "12") {
+                ("a" + "b" + "c")
+                a = !~ b;
+            }
+            
+        }
+        (1, 2, 3)
+        function foo(a, b, c){
+        
+        }
+    </script>
+    <script type="text/javascript" src="tokenizer.js">
+    </script>
+    <script type="text/javascript">
+        var tokenizer = new Tokenizer(document.getElementById("src").text);
+        var stream = tokenizer.parse();
+        console.log(stream);
+    </script>
+</html>
