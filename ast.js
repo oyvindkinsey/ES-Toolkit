@@ -37,6 +37,7 @@ AstGenerator.prototype = {
         CallExpression: "CallExpression",
         GroupingExpression: "GroupingExpression",
         MemberExpression: "MemberExpression",
+        Statement: "Statement",
         FormalParameterList: "FormalParameterList",
         Arguments: "Arguments",
         Punctuator: "Punctuator",
@@ -112,7 +113,7 @@ AstGenerator.prototype = {
                     break;
                     
                 case TYPES.LineTerminator:
-                    if (head.type == this.TYPES.VariableStatement) {
+                    if (head.type == this.TYPES.VariableStatement || head.type == this.TYPES.Statement) {
                         this.pop();
                     }
                     break;
@@ -133,10 +134,18 @@ AstGenerator.prototype = {
                             }));
                             break
                         default:
+                            if (previousToken.type == TYPES.LineTerminator) {
+                                symbol = this.push(this.add({
+                                    type: this.TYPES.Statement
+                                }));
+                            }
                             symbol = this.add({
                                 type: this.TYPES.Identifier,
                                 name: token.data
                             });
+                    }
+                    if (head.type == this.TYPES.MemberExpression) {
+                        this.pop(); //MemberExpression
                     }
                     break;
                     
@@ -215,12 +224,19 @@ AstGenerator.prototype = {
                                     type: this.TYPES.Initializer
                                 }));
                             }
+                            else {
+                                symbol = this.add({
+                                    type: this.TYPES.Punctuator,
+                                    value: token.data
+                                });
+                            }
                             break;
                             
-                        case ":":
-                            
+                        case ".":
+                            symbol = this.push(this.add({
+                                type: this.TYPES.MemberExpression
+                            }));
                             break;
-                            
                         case ";":
                             if (head.type == this.TYPES.VariableDeclaration) {
                                 this.pop(); //VariableDeclaration
@@ -234,6 +250,11 @@ AstGenerator.prototype = {
                             
                             break;
                         case ",":
+                            symbol = this.add({
+                                type: this.TYPES.Punctuator,
+                                value: token.data
+                            });
+                            
                             if (head.type == this.TYPES.VariableDeclaration) {
                                 this.pop(); //VariableDeclaration
                             }
