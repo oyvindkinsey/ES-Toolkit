@@ -124,26 +124,27 @@ Tokenizer.prototype = {
                 }
                 this.pos++;
                 nextPos = this.pos;
-                token.value = this.source.substring(pos, nextPos);
+                token.value = this.source.substring(pos + 1, nextPos - 1);
                 break;
                 
             case this.TYPES.NumericLiteral:
-                // todo: add support for exponentials
-                var isHex = (data == "0" && this.peek(1) == "x");
-                if (isHex) {
-                    //move past the x
-                    this.pos += 2;
-                }
                 if (data == "+" || data == "-") {
                     this.pos++;
                 }
                 
-                //find the next chr that's not a digit or .
-                while (/\d|\./g.test((chr = this.peek()))) {
-                    if (isHex && chr == ".") {
-                        throw new SyntaxError("Unexpected number");
+                if ((data == "0" && this.peek(1) == "x")) {
+                    //move past the x
+                    this.pos += 2;
+                    
+                    while (/[\dabcdef]/i.test((chr = this.peek()))) {
+                        this.pos++;
                     }
-                    this.pos++;
+                }
+                else {
+                    //find the next chr that's not a digit or .
+                    while (/[\d.e]/i.test((chr = this.peek()))) {
+                        this.pos++;
+                    }
                 }
                 nextPos = this.pos;
                 token.value = this.source.substring(pos, nextPos);
@@ -186,7 +187,7 @@ Tokenizer.prototype = {
         
         // update the index
         this.pos = nextPos;
-        this.log("newToken: " + type + (data ? ", " + data : "") + (token.value ? " - " + token.value : ""));
+        this.log("newToken: " + type + ": " + (token.value || data || ""));
     },
     /*
      * This contains the main loop, reading a single character at a time. How many positions each iteration moves ahead
@@ -202,10 +203,9 @@ Tokenizer.prototype = {
                 throw new Error("Uncontrolled loop");
             }
             
-            //EOL will be used by ASI
             if (chr == "\n" && this.lastToken) {
-                if (this.lastToken && (this.lastToken.type == this.TYPES.Semicolon || this.lastToken.type == this.TYPES.EOL)) {
-                    //no need to add the EOL token when we have a semicolon
+                if (this.lastToken && this.lastToken.type == this.TYPES.EOL) {
+                    //no need to add multiple EOL tokens
                     this.pos++;
                 }
                 else {
@@ -246,7 +246,7 @@ Tokenizer.prototype = {
             }
             if (chr == "-" || chr == "+") {
                 nextChr = this.peek(1);
-                if (/\d/.test(nextChr)) {
+                if (/[\d.]/.test(nextChr)) {
                     this.newToken(this.TYPES.NumericLiteral, chr);
                     continue;
                 }
@@ -294,7 +294,6 @@ Tokenizer.prototype = {
                     this.newToken(this.TYPES.BooleanLiteral, word);
                     break;
                 default:
-                    
                     //what's left now are identifiers (variables, function names, types - these will be turned into symbols by the AST generator
                     this.newToken(this.TYPES.Identifier, word);
             }
