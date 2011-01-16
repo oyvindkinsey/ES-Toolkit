@@ -21,7 +21,7 @@ Tokenizer.prototype = {
         CommentSingleLine: "CommentSingleLine",
         CommentMultiLine: "CommentMultiLine",
         Punctuator: "Punctuator",
-        EOL: "EOL",
+        LineTerminator: "LineTerminator",
         Identifier: "Identifier"
     },
     /*
@@ -204,12 +204,12 @@ Tokenizer.prototype = {
             }
             
             if (chr == "\n" && this.lastToken) {
-                if (this.lastToken && this.lastToken.type == this.TYPES.EOL) {
-                    //no need to add multiple EOL tokens
+                if (this.lastToken && this.lastToken.type == this.TYPES.LineTerminator) {
+                    //no need to add multiple LineTerminator tokens
                     this.pos++;
                 }
                 else {
-                    this.newToken(this.TYPES.EOL, chr);
+                    this.newToken(this.TYPES.LineTerminator, chr);
                 }
                 continue;
             }
