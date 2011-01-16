@@ -15,7 +15,7 @@ Tokenizer.prototype = {
         StringLiteral: "StringLiteral",
         NullLiteral: "NullLiteral",
         NumericLiteral: "NumericLiteral",
-        RegExp: "RegExp",
+        RegularExpressionLiteral: "RegularExpressionLiteral",
         Paren: "Paren",
         Block: "Block",
         CommentSingleLine: "CommentSingleLine",
@@ -45,7 +45,7 @@ Tokenizer.prototype = {
         return map;
     })(),
     log: function(msg){
-        console.log(msg);
+        console.log("Tokenizer: " + msg);
     },
     /*
      * Returns the next set of consecutive non-space characters
@@ -150,7 +150,7 @@ Tokenizer.prototype = {
                 token.value = this.source.substring(pos, nextPos);
                 break;
                 
-            case this.TYPES.RegExp:
+            case this.TYPES.RegularExpressionLiteral:
                 //find the next / disregarding those escaped
                 while (true) {
                     this.pos++;
@@ -240,7 +240,7 @@ Tokenizer.prototype = {
                 }
                 if (this.lastToken.type != this.TYPES.NumericLiteral) {
                     // this must be a regexp
-                    this.newToken(this.TYPES.RegExp, chr);
+                    this.newToken(this.TYPES.RegularExpressionLiteral, chr);
                     continue;
                 }
             }
