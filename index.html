@@ -2,42 +2,91 @@
 <html>
     <head>
         <title>JsParse</title>
+        <style type="text/css">
+            div {
+                margin-left: 10px;
+            }
+        </style>
     </head>
     <body>
     <script id="src">
-        // single line comment
-        /*
-         Multi line comment
-         */
-        "tests\"tringfsdf";
-        334
-        1234.3
-        .34
-        344. +
-        22;
-        098
-        0x320;
-        var a = 1;
-        var b;
-        /abc\/dd/dg
-        a++;
-        {
-            if (12 == "12") {
-                ("a" + "b" + "c")
-                a = !~ b;
-            }
+        function fn(a, b, c){
+            var arr = [1, 2, [3]], r;
+            r = arr[1] * arr[2][0] - arr.length;
+            (1, 2, 3)
+            var d = {
+                t: false,
+                a: "a",
+                "b": "b",
+                c: {
+                    d: "d"
+                },
+                g: /foo/
+            }, f = "foobra", h, i = 23;
+            function fn1(){
             
-        }
-        (1, 2, 3)
-        function foo(a, b, c){
-        
+            }
+            fn1(1, "2", false, {
+                a: "a"
+            }, function(){
+            });
+            {
+                var j;
+            }
+            var g = function(){
+            };
         }
     </script>
     <script type="text/javascript" src="tokenizer.js">
     </script>
+    <script type="text/javascript" src="ast.js">
+    </script>
     <script type="text/javascript">
+        
+        // render the ast
+        function renderSymbol(symbol, name, container){
+            var el = document.createElement("div");
+            el.className = "symbol";
+            container.appendChild(el);
+            var header = document.createElement("span");
+            
+            header.innerHTML = symbol.type + (name ? " : " + name : "") + (symbol.value ? " -> " + symbol.value : "")
+            el.appendChild(header);
+            
+            var s;
+            
+            if (symbol.stream) {
+                var streamEl = document.createElement("div");
+                streamEl.className = "stream";
+                el.appendChild(streamEl);
+                for (var i = 0, len = symbol.stream.length; i < len; i++) {
+                
+                    s = symbol.stream[i];
+                    renderSymbol(s, s.name, streamEl);
+                }
+            }
+        }
+        
         var tokenizer = new Tokenizer(document.getElementById("src").text);
+        var start = new Date();
         var stream = tokenizer.parse();
-        console.log(stream);
+        var finishedParsing = new Date();
+        var generator = new AstGenerator(stream);
+        var ast = generator.read();
+        var finishedAsting = new Date();
+        var timeSpentParsing = finishedParsing.valueOf() - start.valueOf();
+        var timeSpentASTing = finishedAsting.valueOf() - finishedParsing.valueOf();
+        console.log("parsed into tokens in " + timeSpentParsing + "ms");
+        console.log("genrated AST in " + timeSpentASTing + "ms");
+        var el = document.createElement("div");
+        el.innerHTML = "parsing: " + timeSpentParsing + "ms<br/>" +
+        "generating AST: " +
+        timeSpentASTing +
+        "ms<br/>" +
+        "source length: " +
+        tokenizer.length +
+        "<br/><br/>";
+        document.body.appendChild(el);
+        renderSymbol(ast, "Program", document.body);
     </script>
 </html>
