@@ -11,60 +11,39 @@ Tokenizer.prototype = {
      */
     TYPES: {
         Keyword: "Keyword",
-        String: "String",
-        Number: "Number",
+        BooleanLiteral: "BooleanLiteral",
+        StringLiteral: "StringLiteral",
+        NullLiteral: "NullLiteral",
+        NumericLiteral: "NumericLiteral",
         RegExp: "RegExp",
         Paren: "Paren",
         Block: "Block",
         CommentSingleLine: "CommentSingleLine",
         CommentMultiLine: "CommentMultiLine",
-        Operator: "Operator",
+        Punctuator: "Punctuator",
         EOL: "EOL",
-        Semicolon: "Semicolon",
         Identifier: "Identifier"
-    },
-    /*
-     * These are all treated as operators and ends up as Operator tokens
-     */
-    OPERATORS: {
-        '.': 1,
-        ',': 1,
-        '+': 1,
-        '-': 1,
-        '/': 1,
-        '*': 1,
-        '+': 1,
-        '&': 1,
-        '&': 1,
-        '|': 1,
-        '=': 1,
-        '!': 1,
-        '<': 1,
-        '>': 1,
-        '~': 1,
-        '^': 1,
-        '?': 1,
-        ':': 1
     },
     /*
      * These are all treated as keywords and ends up as Keyword tokens
      */
-    KEYWORDS: {
-        "function": 1,
-        "var": 1,
-        "delete": 1,
-        "while": 1,
-        "do": 1,
-        "loop": 1,
-        "if": 1,
-        "else": 1,
-        "switch": 1,
-        "case": 1,
-        "try": 1,
-        "catch": 1,
-        "in": 1,
-        "with": 1
-    },
+    KEYWORDS: (function(){
+        var punctuators = "break case catch continue default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with".split(" ");
+        var map = {};
+        for (var i = 0, len = punctuators.length; i < len; i++) {
+            map[punctuators[i]] = 1;
+        }
+        return map;
+        
+    })(),
+    PUNCTUATORS: (function(){
+        var punctuators = "{ } ( ) [ ] . ; , < > <= >= == != === !== + - * % ++ -- << >> >>> & | ^ ! ~ && || ? : = += -= *= %= <<= >>=? >>>= &= |= ^=".split(" ");
+        var map = {};
+        for (var i = 0, len = punctuators.length; i < len; i++) {
+            map[punctuators[i]] = 1;
+        }
+        return map;
+    })(),
     log: function(msg){
         console.log(msg);
     },
@@ -85,7 +64,8 @@ Tokenizer.prototype = {
      */
     peekOperators: function(){
         var pos = this.pos;
-        while (this.peek() in this.OPERATORS) {
+        var chr = "";
+        while ((chr += this.peek()) in this.PUNCTUATORS) {
             this.pos++;
         }
         var nextPos = this.pos;
@@ -123,7 +103,7 @@ Tokenizer.prototype = {
                 token.value = this.source.substring(pos + 2, nextPos - 3);
                 break;
                 
-            case this.TYPES.String:
+            case this.TYPES.StringLiteral:
                 while (true) {
                     this.pos++;
                     chr = this.peek();
@@ -147,11 +127,15 @@ Tokenizer.prototype = {
                 token.value = this.source.substring(pos, nextPos);
                 break;
                 
-            case this.TYPES.Number:
+            case this.TYPES.NumericLiteral:
+                // todo: add support for exponentials
                 var isHex = (data == "0" && this.peek(1) == "x");
                 if (isHex) {
                     //move past the x
                     this.pos += 2;
+                }
+                if (data == "+" || data == "-") {
+                    this.pos++;
                 }
                 
                 //find the next chr that's not a digit or .
@@ -163,13 +147,6 @@ Tokenizer.prototype = {
                 }
                 nextPos = this.pos;
                 token.value = this.source.substring(pos, nextPos);
-                break;
-                
-            case this.TYPES.Whitespace:
-                //find the next chr that is not whitespace
-                while (/\s/g.test(this.peek())) {
-                    this.pos++;
-                }
                 break;
                 
             case this.TYPES.RegExp:
@@ -248,11 +225,6 @@ Tokenizer.prototype = {
                 throw new SyntaxError("Unexpected token ILLEGAL");
             }
             
-            if (chr == ";") {
-                this.newToken(this.TYPES.Semicolon, chr);
-                continue;
-            }
-            
             //this might be a comment or a regexp
             if (chr == "/") {
                 nextChr = this.peek(1);
@@ -266,59 +238,66 @@ Tokenizer.prototype = {
                     this.newToken(this.TYPES.CommentMultiLine, chr);
                     continue;
                 }
-                if (this.lastToken.type != this.TYPES.Number) {
+                if (this.lastToken.type != this.TYPES.NumericLiteral) {
                     // this must be a regexp
                     this.newToken(this.TYPES.RegExp, chr);
                     continue;
                 }
             }
+            if (chr == "-" || chr == "+") {
+                nextChr = this.peek(1);
+                if (/\d/.test(nextChr)) {
+                    this.newToken(this.TYPES.NumericLiteral, chr);
+                    continue;
+                }
+            }
             
-            if (chr in this.OPERATORS) {
-                //if the next character is a digit then this is a number
+            if (chr in this.PUNCTUATORS) {
                 if (chr == ".") {
+                    //if the next character is a digit then this is a number
                     if (/\d/.test(this.peek(1))) {
-                        this.newToken(this.TYPES.Number, chr);
+                        this.newToken(this.TYPES.NumericLiteral, chr);
                         continue;
                     }
                 }
                 
                 //see if we can find more
                 chr = this.peekOperators();
-                this.newToken(this.TYPES.Operator, chr);
+                this.newToken(this.TYPES.Punctuator, chr);
                 continue;
             }
             
             //this is a string
             if (chr == "\"" || chr == "'") {
-                this.newToken(this.TYPES.String, chr);
+                this.newToken(this.TYPES.StringLiteral, chr);
                 continue;
             }
             
             //this is a number
             if (/\d/.test(chr)) {
-                this.newToken(this.TYPES.Number, chr);
+                this.newToken(this.TYPES.NumericLiteral, chr);
                 continue;
             }
             
-            //parens
-            if (chr == "(" || chr == ")") {
-                this.newToken(this.TYPES.Paren, chr);
-                continue;
-            }
-            
-            //block
-            if (chr == "{" || chr == "}") {
-                this.newToken(this.TYPES.Block, chr);
-                continue;
-            }
-            
+            //keywords
             var word = this.peekWord();
             if (word in this.KEYWORDS) {
                 this.newToken(this.TYPES.Keyword, word);
                 continue;
             }
-            //what's left now are identifiers (var's, function names, types
-            this.newToken(this.TYPES.Identifier, word);
+            switch (word) {
+                case "null":
+                    this.newToken(this.TYPES.NullLiteral, word);
+                    break;
+                case "true": // fall through
+                case "false":
+                    this.newToken(this.TYPES.BooleanLiteral, word);
+                    break;
+                default:
+                    
+                    //what's left now are identifiers (variables, function names, types - these will be turned into symbols by the AST generator
+                    this.newToken(this.TYPES.Identifier, word);
+            }
         }
         
         return this.tokens;
