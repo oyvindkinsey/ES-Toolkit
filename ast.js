@@ -268,7 +268,7 @@ AstGenerator.prototype = {
                             break;
                             
                         case "(":
-                            if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")")) {
+                            if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
                                 symbol = this.push(this.add({
                                     type: this.TYPES.CallExpression
                                 }));
