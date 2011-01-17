@@ -64,8 +64,8 @@ Tokenizer.prototype = {
      */
     peekOperators: function(){
         var pos = this.pos;
-        var chr = "";
-        while ((chr += this.peek()) in this.PUNCTUATORS) {
+        var chr = "", next;
+        while (((next = this.peek()) && ((chr += next) in this.PUNCTUATORS))) {
             this.pos++;
         }
         var nextPos = this.pos;
