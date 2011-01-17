@@ -3,90 +3,118 @@
     <head>
         <title>JsParse</title>
         <style type="text/css">
-            div {
+            #output div {
                 margin-left: 10px;
             }
+            
+            #txtSrc {
+                width: 600px;
+                height: 300px;
+                display: block;
+            }
+            
+            #btnParse {
+                width: 600px;
+            }
         </style>
-    </head>
-    <body>
-    <script id="src">
-        function fn(a, b, c){
-            var arr = [1, 2, [3]], r;
-            r = arr[1] * arr[2][0] - arr.length;
-            (1, 2, 3)
-            var d = {
-                t: false,
-                a: "a",
-                "b": "b",
-                c: {
-                    d: "d"
-                },
-                g: /foo/
-            }, f = "foobra", h, i = 23;
-            function fn1(){
+        <script type="text/javascript" src="tokenizer.js">
+        </script>
+        <script type="text/javascript" src="ast.js">
+        </script>
+        <script type="text/javascript">
             
-            }
-            fn1(1, "2", false, {
-                a: "a"
-            }, function(){
-            });
-            {
-                var j;
-            }
-            var g = function(){
-            };
-        }
-    </script>
-    <script type="text/javascript" src="tokenizer.js">
-    </script>
-    <script type="text/javascript" src="ast.js">
-    </script>
-    <script type="text/javascript">
-        
-        // render the ast
-        function renderSymbol(symbol, name, container){
-            var el = document.createElement("div");
-            el.className = "symbol";
-            container.appendChild(el);
-            var header = document.createElement("span");
+            var output, input;
             
-            header.innerHTML = symbol.type + (name ? " : " + name : "") + (symbol.value ? " -> " + symbol.value : "")
-            el.appendChild(header);
-            
-            var s;
-            
-            if (symbol.stream) {
-                var streamEl = document.createElement("div");
-                streamEl.className = "stream";
-                el.appendChild(streamEl);
-                for (var i = 0, len = symbol.stream.length; i < len; i++) {
+            function renderSymbol(symbol, name, container){
+                var el = document.createElement("div");
+                el.className = "symbol";
+                container.appendChild(el);
+                var header = document.createElement("span");
                 
-                    s = symbol.stream[i];
-                    renderSymbol(s, s.name, streamEl);
+                header.innerHTML = symbol.type + (name ? " : " + name : "") + (symbol.value ? " -> " + symbol.value : "");
+                el.appendChild(header);
+                
+                var s;
+                
+                if (symbol.stream) {
+                    var streamEl = document.createElement("div");
+                    streamEl.className = "stream";
+                    el.appendChild(streamEl);
+                    for (var i = 0, len = symbol.stream.length; i < len; i++) {
+                    
+                        s = symbol.stream[i];
+                        renderSymbol(s, s.name, streamEl);
+                    }
                 }
             }
+            
+            function parseSource(){
+                if (!output) {
+                    output = document.getElementById("output");
+                }
+                if (!input) {
+                    input = document.getElementById("txtSrc");
+                }
+                output.innerHTML = "";
+                var tokenizer = new Tokenizer(input.value);
+                
+                var start = new Date();
+                var stream = tokenizer.parse();
+                var finishedParsing = new Date();
+                var timeSpentParsing = finishedParsing.valueOf() - start.valueOf();
+                console.log("parsed into tokens in " + timeSpentParsing + "ms");
+                
+                var generator = new AstGenerator(stream);
+                var ast = generator.read();
+                var finishedAsting = new Date();
+                
+                var timeSpentASTing = finishedAsting.valueOf() - finishedParsing.valueOf();
+                
+                console.log("genrated AST in " + timeSpentASTing + "ms");
+                var el = document.createElement("div");
+                el.innerHTML = "parsing: " + timeSpentParsing + "ms<br/>" +
+                "generating AST: " +
+                timeSpentASTing +
+                "ms<br/>" +
+                "source length: " +
+                tokenizer.length +
+                "<br/><br/>";
+                output.appendChild(el);
+                renderSymbol(ast, "Program", output);
+            }
+        </script>
+    </head>
+    <body>
+    <textarea id="txtSrc">
+        function fn(a, b, c){
+        var arr = [1, 2, [3]], r;
+        r = arr[1] * arr[2][0] - arr.length;
+        (1, 2, 3)
+        var d = {
+        t: false,
+        a: "a",
+        "b": "b",
+        c: {
+        d: "d"
+        },
+        g: /foo/
+        }, f = "foobra", h, i = 23;
+        function fn1(){
         }
-        
-        var tokenizer = new Tokenizer(document.getElementById("src").text);
-        var start = new Date();
-        var stream = tokenizer.parse();
-        var finishedParsing = new Date();
-        var generator = new AstGenerator(stream);
-        var ast = generator.read();
-        var finishedAsting = new Date();
-        var timeSpentParsing = finishedParsing.valueOf() - start.valueOf();
-        var timeSpentASTing = finishedAsting.valueOf() - finishedParsing.valueOf();
-        console.log("parsed into tokens in " + timeSpentParsing + "ms");
-        console.log("genrated AST in " + timeSpentASTing + "ms");
-        var el = document.createElement("div");
-        el.innerHTML = "parsing: " + timeSpentParsing + "ms<br/>" +
-        "generating AST: " +
-        timeSpentASTing +
-        "ms<br/>" +
-        "source length: " +
-        tokenizer.length +
-        "<br/><br/>";
-        document.body.appendChild(el);
-        renderSymbol(ast, "Program", document.body);
-    </script>
+        fn1(1, "2", false, {
+        a: "a"
+        }, function(){
+        });
+        {
+        var j;
+        }
+        var g = function(){
+        };
+        }
+    </textarea>
+    <button id="btnParse" onclick="parseSource();">
+        Parse
+    </button>
+    <div id="output">
+    </div>
 </html>
