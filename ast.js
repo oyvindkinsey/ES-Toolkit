@@ -251,12 +251,9 @@ AstGenerator.prototype = {
                             }
                             
                             break;
+                        case ":":
+                            break;
                         case ",":
-                            symbol = this.add({
-                                type: this.TYPES.Punctuator,
-                                value: token.data
-                            });
-                            
                             if (head.type == this.TYPES.VariableDeclaration) {
                                 this.pop(); //VariableDeclaration
                             }
