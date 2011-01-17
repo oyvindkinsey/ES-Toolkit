@@ -64,7 +64,9 @@ AstGenerator.prototype = {
     read: function(){
     
         var TYPES = Tokenizer.prototype.TYPES;
-        var token, previousToken, head, symbol;
+        var token, previousToken = {
+            type: TYPES.LineTerminator
+        }, head, symbol;
         
         while (this.pos < this.length) {
             token = this.readNext();
@@ -78,7 +80,7 @@ AstGenerator.prototype = {
                     switch (token.data) {
                         case "function":
                             symbol = this.push(this.add({
-                                type: (!previousToken || previousToken.type == TYPES.LineTerminator) ? this.TYPES.FunctionDeclaration : this.TYPES.FunctionExpression
+                                type: (previousToken.type == TYPES.LineTerminator) ? this.TYPES.FunctionDeclaration : this.TYPES.FunctionExpression
                             }));
                             // move through the identifier and the formal parameter list
                             token = this.readNext();
@@ -269,7 +271,7 @@ AstGenerator.prototype = {
                             break;
                             
                         case "(":
-                            if (previousToken && (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")")) {
+                            if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")")) {
                                 symbol = this.push(this.add({
                                     type: this.TYPES.CallExpression
                                 }));
@@ -287,7 +289,7 @@ AstGenerator.prototype = {
                             break;
                             
                         case "[":
-                            if (previousToken && (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")")) {
+                            if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
                                 symbol = this.push(this.add({
                                     type: this.TYPES.MemberExpression
                                 }));
