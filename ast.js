@@ -1,14 +1,22 @@
+//todo: [this.symbol], > MemberExpression
+
 function AstGenerator(stream){
     this.stream = stream;
     this.pos = 0;
     this.length = stream.length;
-    this.symbol = this.global = {
+    this.symbol = {
+        type: this.TYPES.SourceElement
+    };
+    this.global = {
         type: this.TYPES.Program,
-        stream: [],
+        stream: [this.symbol],
         vo: {}
     };
-    this.stack = [this.global];
-    this.head = this.global;
+    this.stack = [this.global, this.symbol];
+    this.head = this.symbol;
+    this.lastToken = {
+        type: this.TYPES.LineTerminator
+    };
 }
 
 AstGenerator.prototype = {
@@ -29,17 +37,28 @@ AstGenerator.prototype = {
         this.head.stream.push(symbol);
         return symbol;
     },
+    take: function(){
+        return this.head.stream.pop();
+    },
     TYPES: {
         Program: "Program",
         FunctionExpression: "FunctionExpression",
         FunctionDeclaration: "FunctionDeclaration",
+        Keyword: "Keyword",
         SourceElement: "SourceElement",
         CallExpression: "CallExpression",
         GroupingExpression: "GroupingExpression",
         MemberExpression: "MemberExpression",
+        AssignmentExpression: "AssignmentExpression",
         Statement: "Statement",
         FormalParameterList: "FormalParameterList",
+        SwitchStatement: "SwitchStatement",
+        SwitchExpression: "SwitchExpression",
+        SwitchBlock: "SwitchBlock",
+        CaseStatement: "CaseStatement",
+        CaseClause: "CaseClause",
         Arguments: "Arguments",
+        StatementList: "StatementList",
         Punctuator: "Punctuator",
         Parameter: "Parameter",
         Initializer: "Initializer",
@@ -51,7 +70,7 @@ AstGenerator.prototype = {
         BooleanLiteral: "BooleanLiteral",
         ArrayLiteral: "ArrayLiteral",
         ObjectLiteral: "ObjectLiteral",
-        StringLiteral: "StringLiteral",
+        StringLiteral: "StringLiteral",	
         NumericLiteral: "NumericLiteral",
         RegularExpressionLiteral: "RegularExpressionLiteral"
     },
@@ -62,7 +81,6 @@ AstGenerator.prototype = {
         return this.stream[this.pos++];
     },
     read: function(){
-    
         var TYPES = Tokenizer.prototype.TYPES;
         var token, previousToken = {
             type: TYPES.Semicolon
@@ -73,8 +91,25 @@ AstGenerator.prototype = {
             head = this.head;
             
             // todo: implement ASI
+            if (token.type == TYPES.LineTerminator) {
+                //ignore the LineTerminator unless we need to do ASI
+                var skip = true;
+                if (this.lastToken.type != TYPES.Semicolon) {
+                    //set skip to false if token was replaced by Semicolon
+                }
+                if (skip) {
+                    continue;
+                }
+            }
             
             switch (token.type) {
+            
+                case TYPES.Semicolon:
+                    // pop until we hit the SourceElement
+                    while (this.head.type != this.TYPES.SourceElement && this.head.type != this.TYPES.StatementList) {
+                        this.pop();
+                    }
+                    break;
                 case TYPES.Keyword:
                     
                     switch (token.data) {
@@ -105,13 +140,57 @@ AstGenerator.prototype = {
                             break;
                             
                         case "var":
-                            symbol = this.add({
-                                type: this.TYPES.VariableStatement,
-                                stream: []
-                            });
-                            this.push(symbol);
+                            symbol = this.push(this.add({
+                                type: this.TYPES.VariableStatement
+                            }));
                             break;
-                    
+                            
+                        case "switch":
+                            symbol = this.push(this.add({
+                                type: this.TYPES.SwitchStatement
+                            }));
+                            break;
+                            
+                        case "case":
+                            while (this.head.type != this.TYPES.SwitchBlock) {
+                                this.pop();
+                            }
+                            symbol = this.push(this.add({
+                                type: this.TYPES.CaseStatement
+                            }));
+                            
+                            symbol = this.push(this.add({
+                                type: this.TYPES.CaseClause
+                            }));
+                            
+                            break;
+                            
+                        case "default":
+                            while (this.head.type != this.TYPES.SwitchBlock) {
+                                this.pop();
+                            }
+                            symbol = this.push(this.add({
+                                type: this.TYPES.CaseStatement
+                            }));
+                            
+                            symbol = this.push(this.add({
+                                type: this.TYPES.StatementList
+                            }));
+                            
+                            break;
+							
+						case "this":
+                            symbol = this.add({
+                                type: this.TYPES.Keyword,
+                                name: token.data
+                            });						
+							break;
+							
+                        default:
+                            symbol = this.add({
+                                type: this.TYPES.Keyword,
+                                name: token.data
+                            });
                     }
                     break;
                     
@@ -158,14 +237,6 @@ AstGenerator.prototype = {
                             type: this.TYPES.StringLiteral,
                             value: token.value
                         });
-                        if (head.type == this.TYPES.Initializer) {
-                            this.pop(); //Initializer
-                            this.pop(); //VariableDeclaration
-                        }
-                        
-                        if (head.type == this.TYPES.PropertyAssignment) {
-                            this.pop(); //PropertyAssignment
-                        }
                     }
                     break;
                     
@@ -174,13 +245,7 @@ AstGenerator.prototype = {
                         type: this.TYPES.NumericLiteral,
                         value: token.value
                     });
-                    if (head.type == this.TYPES.Initializer) {
-                        this.pop(); //Initializer
-                        this.pop(); //VariableDeclaration
-                    }
-                    if (head.type == this.TYPES.PropertyAssignment) {
-                        this.pop(); //PropertyAssignment
-                    }
+                    
                     break;
                     
                 case TYPES.BooleanLiteral:
@@ -188,13 +253,6 @@ AstGenerator.prototype = {
                         type: this.TYPES.BooleanLiteral,
                         value: token.data
                     });
-                    if (head.type == this.TYPES.Initializer) {
-                        this.pop(); //Initializer
-                        this.pop(); //VariableDeclaration
-                    }
-                    if (head.type == this.TYPES.PropertyAssignment) {
-                        this.pop(); //PropertyAssignment
-                    }
                     break;
                     
                 case TYPES.RegularExpressionLiteral:
@@ -202,13 +260,6 @@ AstGenerator.prototype = {
                         type: this.TYPES.RegularExpressionLiteral,
                         value: token.value
                     });
-                    if (head.type == this.TYPES.Initializer) {
-                        this.pop(); //Initializer
-                        this.pop(); //VariableDeclaration
-                    }
-                    if (head.type == this.TYPES.PropertyAssignment) {
-                        this.pop(); //PropertyAssignment
-                    }
                     break;
                     
                 case TYPES.Punctuator:
@@ -222,10 +273,11 @@ AstGenerator.prototype = {
                                 }));
                             }
                             else {
-                                symbol = this.add({
-                                    type: this.TYPES.Punctuator,
-                                    value: token.data
-                                });
+                                // replace symbol with AssignmentExpression
+                                symbol = this.push(this.add({
+                                    type: this.TYPES.AssignmentExpression,
+                                    stream: [this.take()]
+                                }));
                             }
                             break;
                             
@@ -236,19 +288,27 @@ AstGenerator.prototype = {
                             break;
                             
                         case ":":
+                            if (head.type == this.TYPES.CaseClause) {
+                                this.pop();
+                                symbol = this.push(this.add({
+                                    type: this.TYPES.StatementList
+                                }));
+                            }
                             break;
+                            
                         case ",":
-                            if (head.type == this.TYPES.VariableDeclaration) {
-                                this.pop(); //VariableDeclaration
+                            var popTo = {};
+                            popTo[this.TYPES.VariableStatement] = 1;
+                            popTo[this.TYPES.CallExpression] = 1;
+                            popTo[this.TYPES.GroupingExpression] = 1;
+                            popTo[this.TYPES.ArrayLiteral] = 1;
+                            popTo[this.TYPES.Statement] = 1;
+							popTo[this.TYPES.ObjectLiteral] = 1;
+							
+                            while (!(this.head.type in popTo)) {
+                                this.pop();
                             }
-                            if (head.type == this.TYPES.Initializer) {
-                                this.pop(); //Initializer
-                                this.pop(); //VariableDeclaration
-                                this.pop(); //VariableStatement
-                            }
-                            if (head.type == this.TYPES.PropertyAssignment) {
-                                this.pop(); //PropertyAssignment
-                            }
+                            
                             break;
                             
                         case "(":
@@ -258,15 +318,26 @@ AstGenerator.prototype = {
                                 }));
                             }
                             else {
-                                symbol = this.push(this.add({
-                                    type: this.TYPES.GroupingExpression
-                                }));
-                                
+                                if (head.type == this.TYPES.SwitchStatement) {
+                                    symbol = this.push(this.add({
+                                        type: this.TYPES.SwitchExpression
+                                    }));
+                                    
+                                }
+                                else {
+                                    symbol = this.push(this.add({
+                                        type: this.TYPES.GroupingExpression
+                                    }));
+                                }
                             }
                             break;
                             
                         case ")":
+                            
                             this.pop();
+                            if (this.head.type == this.TYPES.GroupingExpression) {
+                                this.pop();
+                            }
                             break;
                             
                         case "[":
@@ -293,26 +364,41 @@ AstGenerator.prototype = {
                                 }));
                             }
                             else {
-                                if (previousToken.type == TYPES.LineTerminator) {
+                                if (head.type == this.TYPES.SwitchStatement) {
                                     symbol = this.push(this.add({
-                                        type: this.TYPES.Block
+                                        type: this.TYPES.SwitchBlock
                                     }));
+                                    break;
                                 }
-                                else {
-                                    symbol = this.push(this.add({
-                                        type: this.TYPES.ObjectLiteral
-                                    }));
+                                switch (previousToken.type) {
+                                    case this.TYPES.Semicolon: //fall through
+                                    case this.TYPES.Keyword:
+                                        symbol = this.push(this.add({
+                                            type: this.TYPES.Block
+                                        }));
+                                        break;
+                                        
+                                    default:
+                                        symbol = this.push(this.add({
+                                            type: this.TYPES.ObjectLiteral
+                                        }));
                                 }
                             }
                             break;
                             
                         case "}":
+                            
                             this.pop(); // close the pair
                             if (head.type == this.TYPES.SourceElement) {
                                 this.pop(); // FunctionExpression/FunctionDeclaration
                             }
                             if (head.type == this.TYPES.PropertyAssignment) {
                                 this.pop(); //PropertyAssignment
+                            }
+                            if (head.type == this.TYPES.StatementList) {
+                                while (this.head.type != this.TYPES.SourceElement) {
+                                    this.pop();
+                                }
                             }
                             break;
                             
@@ -328,10 +414,11 @@ AstGenerator.prototype = {
             previousToken = token;
         }
         
-        if (this.stack.length > 1) {
-            throw new Error("Non-terminated " + this.stack[this.stack.length - 1].type);
+        console.log(this.head);
+        if (this.stack.length > 2) {
+            console.log(this.stack[this.stack.length - 1])
+            console.log("Non-terminated " + this.stack[this.stack.length - 1].type);
         }
-        console.log(this.symbol);
         return this.symbol;
     }
 };
