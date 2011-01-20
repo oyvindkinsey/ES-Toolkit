@@ -3,18 +3,28 @@
     <head>
         <title>JsParse</title>
         <style type="text/css">
+            #col1, #col2 {
+                width: 50%;;
+                float: left;
+            }
+            
+            #output, #txtSrc {
+                width: 98%;
+            }
+            
             #output div {
                 margin-left: 10px;
             }
             
             #txtSrc {
-                width: 600px;
                 height: 300px;
-                display: block;
             }
-            
+            #output {
+            	height:300px;
+				overflow:auto;
+            }
             #btnParse {
-                width: 600px;
+                width: 100%;
             }
         </style>
         <script type="text/javascript" src="tokenizer.js">
@@ -85,36 +95,40 @@
         </script>
     </head>
     <body>
-    <textarea id="txtSrc">
-        function fn(a, b, c){
-        var arr = [1, 2, [3]], r;
-        r = arr[1] * arr[2][0] - arr.length;
-        (1, 2, 3)
-        var d = {
-        t: false,
-        a: "a",
-        "b": "b",
-        c: {
-        d: "d"
-        },
-        g: /foo/
-        }, f = "foobra", h, i = 23;
-        function fn1(){
-        }
-        fn1(1, "2", false, {
-        a: "a"
-        }, function(){
-        });
-        {
-        var j;
-        }
-        var g = function(){
-        };
-        }
-    </textarea>
-    <button id="btnParse" onclick="parseSource();">
-        Parse
-    </button>
-    <div id="output">
+    <div id="col1">
+        <textarea id="txtSrc">
+            function fn(a, b, c){
+            var arr = [1, 2, [3]], r;
+            r = arr[1] * arr[2][0] - arr.length;
+            (1, 2, 3)
+            var d = {
+            t: false,
+            a: "a",
+            "b": "b",
+            c: {
+            d: "d"
+            },
+            g: /foo/
+            }, f = "foobra", h, i = 23;
+            function fn1(){
+            }
+            fn1(1, "2", false, {
+            a: "a"
+            }, function(){
+            });
+            {
+            var j;
+            }
+            var g = function(){
+            };
+            }
+        </textarea>
+        <button id="btnParse" onclick="parseSource();">
+            Parse
+        </button>
+    </div>
+    <div id="col2">
+        <div id="output">
+        </div>
     </div>
 </html>
