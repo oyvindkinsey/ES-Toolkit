@@ -65,7 +65,7 @@ AstGenerator.prototype = {
     
         var TYPES = Tokenizer.prototype.TYPES;
         var token, previousToken = {
-            type: TYPES.LineTerminator
+            type: TYPES.Semicolon
         }, head, symbol;
         
         while (this.pos < this.length) {
@@ -80,7 +80,7 @@ AstGenerator.prototype = {
                     switch (token.data) {
                         case "function":
                             symbol = this.push(this.add({
-                                type: (previousToken.type == TYPES.LineTerminator) ? this.TYPES.FunctionDeclaration : this.TYPES.FunctionExpression
+                                type: (previousToken.type == TYPES.Semicolon) ? this.TYPES.FunctionDeclaration : this.TYPES.FunctionExpression
                             }));
                             // move through the identifier and the formal parameter list
                             token = this.readNext();
@@ -111,12 +111,7 @@ AstGenerator.prototype = {
                             });
                             this.push(symbol);
                             break;
-                    }
-                    break;
                     
-                case TYPES.LineTerminator:
-                    if (head.type == this.TYPES.VariableStatement || head.type == this.TYPES.Statement) {
-                        this.pop();
                     }
                     break;
                     
@@ -136,7 +131,7 @@ AstGenerator.prototype = {
                             }));
                             break
                         default:
-                            if (previousToken.type == TYPES.LineTerminator) {
+                            if (previousToken.type == TYPES.Semicolon) {
                                 symbol = this.push(this.add({
                                     type: this.TYPES.Statement
                                 }));
@@ -239,18 +234,7 @@ AstGenerator.prototype = {
                                 type: this.TYPES.MemberExpression
                             }));
                             break;
-                        case ";":
-                            if (head.type == this.TYPES.VariableDeclaration) {
-                                this.pop(); //VariableDeclaration
-                                this.pop(); //VariableStatement
-                            }
-                            if (head.type == this.TYPES.Initializer) {
-                                this.pop(); //Initializer
-                                this.pop(); //VariableDeclaration
-                                this.pop(); //VariableStatement
-                            }
                             
-                            break;
                         case ":":
                             break;
                         case ",":

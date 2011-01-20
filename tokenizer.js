@@ -3,6 +3,7 @@ function Tokenizer(src){
     this.length = this.source.length;
     this.pos = 0;
     this.tokens = [];
+    this.lastToken = {}
 }
 
 Tokenizer.prototype = {
@@ -22,6 +23,7 @@ Tokenizer.prototype = {
         CommentMultiLine: "CommentMultiLine",
         Punctuator: "Punctuator",
         LineTerminator: "LineTerminator",
+        Semicolon: "Semicolon",
         Identifier: "Identifier"
     },
     /*
@@ -37,7 +39,7 @@ Tokenizer.prototype = {
         
     })(),
     PUNCTUATORS: (function(){
-        var punctuators = "{ } ( ) [ ] . ; , < > <= >= == != === !== + - * % ++ -- << >> >>> & | ^ ! ~ && || ? : = += -= *= %= <<= >>=? >>>= &= |= ^=".split(" ");
+        var punctuators = "{ } ( ) [ ] . ; , < > <= >= == != === !== + - * % ++ -- << >> >>> & | ^ ! ~ && || ? : = += -= *= %= <<= >>=? >>>= &= |= ^= / /=".split(" ");
         var map = {};
         for (var i = 0, len = punctuators.length; i < len; i++) {
             map[punctuators[i]] = 1;
@@ -197,7 +199,7 @@ Tokenizer.prototype = {
         var chr, nextChr;
         
         // to avoid uncrontrolled loops while debuggin
-        var max = 1000, i = 0;
+        var max = 100000, i = 0;
         while ((chr = this.peek())) {
             if (++i == max) {
                 throw new Error("Uncontrolled loop");
@@ -238,8 +240,9 @@ Tokenizer.prototype = {
                     this.newToken(this.TYPES.CommentMultiLine, chr);
                     continue;
                 }
-                if (this.lastToken.type != this.TYPES.NumericLiteral) {
-                    // this must be a regexp
+                
+                // having two numbers and two regular expressions afte another are both invalid and weird
+                if (this.lastToken.type != this.TYPES.NumericLiteral && this.lastToken.type != this.TYPES.RegularExpressionLiteral) {
                     this.newToken(this.TYPES.RegularExpressionLiteral, chr);
                     continue;
                 }
@@ -252,6 +255,11 @@ Tokenizer.prototype = {
                 }
             }
             
+            if (chr == ";") {
+                // add this as a special token instead of as a Punctuator
+                this.newToken(this.TYPES.Semicolon, chr);
+                continue;
+            }
             if (chr in this.PUNCTUATORS) {
                 if (chr == ".") {
                     //if the next character is a digit then this is a number
@@ -260,7 +268,6 @@ Tokenizer.prototype = {
                         continue;
                     }
                 }
-                
                 //see if we can find more
                 chr = this.peekOperators();
                 this.newToken(this.TYPES.Punctuator, chr);
@@ -298,7 +305,6 @@ Tokenizer.prototype = {
                     this.newToken(this.TYPES.Identifier, word);
             }
         }
-        
         return this.tokens;
     }
 };
