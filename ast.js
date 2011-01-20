@@ -38,6 +38,9 @@ AstGenerator.prototype = {
         return symbol;
     },
     take: function(){
+        if (!this.head.stream || this.head.stream.length == 0) {
+            throw new Error("Cannot pop empty stream");
+        }
         return this.head.stream.pop();
     },
     TYPES: {
@@ -48,6 +51,9 @@ AstGenerator.prototype = {
         SourceElement: "SourceElement",
         CallExpression: "CallExpression",
         GroupingExpression: "GroupingExpression",
+        AdditiveExpression: "AdditiveExpression",
+        RelationalExpression: "RelationalExpression",
+        MultiplicativeExpression: "MultiplicativeExpression",
         MemberExpression: "MemberExpression",
         AssignmentExpression: "AssignmentExpression",
         Statement: "Statement",
@@ -56,7 +62,14 @@ AstGenerator.prototype = {
         SwitchExpression: "SwitchExpression",
         SwitchBlock: "SwitchBlock",
         CaseStatement: "CaseStatement",
-        CaseClause: "CaseClause",
+        WhileStatement: "WhileStatement",
+        WhileExpression: "WhileExpression",
+        WhileBlock: "WhileBlock",
+        IfStatement: "IfStatement",
+        IfExpression: "IfExpression",
+        IfBlock: "IfBlock",
+        ElseExpression: "ElseExpression",
+        ElseBlock: "ElseBlock",
         Arguments: "Arguments",
         StatementList: "StatementList",
         Punctuator: "Punctuator",
@@ -105,8 +118,12 @@ AstGenerator.prototype = {
             switch (token.type) {
             
                 case TYPES.Semicolon:
-                    // pop until we hit the SourceElement
-                    while (this.head.type != this.TYPES.SourceElement && this.head.type != this.TYPES.StatementList) {
+                    var popTo = {};
+                    popTo[this.TYPES.SourceElement] = 1;
+                    popTo[this.TYPES.StatementList] = 1;
+                    popTo[this.TYPES.IfBlock] = 1;
+                    popTo[this.TYPES.ElseBlock] = 1;
+                    while (!(this.head.type in popTo)) {
                         this.pop();
                     }
                     break;
@@ -114,6 +131,7 @@ AstGenerator.prototype = {
                     
                     switch (token.data) {
                         case "function":
+                            console.log(previousToken.type);
                             symbol = this.push(this.add({
                                 type: (previousToken.type == TYPES.Semicolon) ? this.TYPES.FunctionDeclaration : this.TYPES.FunctionExpression
                             }));
@@ -151,6 +169,12 @@ AstGenerator.prototype = {
                             }));
                             break;
                             
+                        case "while":
+                            symbol = this.push(this.add({
+                                type: this.TYPES.WhileStatement
+                            }));
+                            break;
+                            
                         case "case":
                             while (this.head.type != this.TYPES.SwitchBlock) {
                                 this.pop();
@@ -162,6 +186,18 @@ AstGenerator.prototype = {
                             symbol = this.push(this.add({
                                 type: this.TYPES.CaseClause
                             }));
+                            
+                            break;
+                        case "if":
+                            symbol = this.push(this.add({
+                                type: this.TYPES.IfStatement
+                            }));
+                            break;
+                            
+                        case "else":
+                            symbol = this.add({
+                                type: this.TYPES.ElseExpression
+                            });
                             
                             break;
                             
@@ -291,6 +327,43 @@ AstGenerator.prototype = {
                             }
                             break;
                             
+                        case "-": //fall through	
+                        case "+":
+                            symbol = this.push(this.add({
+                                type: this.TYPES.AdditiveExpression,
+                                stream: [this.take()]
+                            }));
+                            symbol = this.add({
+                                type: this.TYPES.Punctuator,
+                                value: token.data
+                            });
+                            break;
+                            
+                        case "<"://fallthrough
+                        case ">"://fallthrough
+                        case "<="://fallthrough
+                        case ">=":
+                            symbol = this.push(this.add({
+                                type: this.TYPES.RelationalExpression,
+                                stream: [this.take()]
+                            }));
+                            symbol = this.add({
+                                type: this.TYPES.Punctuator,
+                                value: token.data
+                            });
+                            break;
+                            
+                        case "/":
+                        case "*":
+                            symbol = this.push(this.add({
+                                type: this.TYPES.MultiplicativeExpression,
+                                stream: [this.take()]
+                            }));
+                            symbol = this.add({
+                                type: this.TYPES.Punctuator,
+                                value: token.data
+                            });
+                            break;
                         case ".":
                             symbol = this.push(this.add({
                                 type: this.TYPES.MemberExpression,
@@ -323,6 +396,7 @@ AstGenerator.prototype = {
                             break;
                             
                         case "(":
+                            
                             if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
                                 if (head.type == this.TYPES.MemberExpression) {
                                     this.pop();
@@ -334,16 +408,27 @@ AstGenerator.prototype = {
                                 }));
                             }
                             else {
-                                if (head.type == this.TYPES.SwitchStatement) {
-                                    symbol = this.push(this.add({
-                                        type: this.TYPES.SwitchExpression
-                                    }));
-                                    
-                                }
-                                else {
-                                    symbol = this.push(this.add({
-                                        type: this.TYPES.GroupingExpression
-                                    }));
+                                switch (head.type) {
+                                    case this.TYPES.WhileStatement:
+                                        symbol = this.push(this.add({
+                                            type: this.TYPES.WhileExpression
+                                        }));
+                                        break;
+                                        
+                                    case this.TYPES.SwitchStatement:
+                                        symbol = this.push(this.add({
+                                            type: this.TYPES.SwitchExpression
+                                        }));
+                                        break;
+                                    case this.TYPES.IfStatement:
+                                        symbol = this.push(this.add({
+                                            type: this.TYPES.IfExpression
+                                        }));
+                                        break;
+                                    default:
+                                        symbol = this.push(this.add({
+                                            type: this.TYPES.GroupingExpression
+                                        }));
                                 }
                             }
                             break;
@@ -376,30 +461,52 @@ AstGenerator.prototype = {
                             break;
                             
                         case "{":
+                            console.log(head.type);
                             if (head.type == this.TYPES.FunctionDeclaration || head.type == this.TYPES.FunctionExpression) {
                                 symbol = this.push(this.add({
                                     type: this.TYPES.SourceElement
                                 }));
                             }
                             else {
-                                if (head.type == this.TYPES.SwitchStatement) {
+                                if (symbol.type == this.TYPES.ElseExpression) {
                                     symbol = this.push(this.add({
-                                        type: this.TYPES.SwitchBlock
+                                        type: this.TYPES.ElseBlock
                                     }));
-                                    break;
                                 }
-                                switch (previousToken.type) {
-                                    case this.TYPES.Semicolon: //fall through
-                                    case this.TYPES.Keyword:
-                                        symbol = this.push(this.add({
-                                            type: this.TYPES.Block
-                                        }));
-                                        break;
-                                        
-                                    default:
-                                        symbol = this.push(this.add({
-                                            type: this.TYPES.ObjectLiteral
-                                        }));
+                                else {
+                                    switch (head.type) {
+                                        case this.TYPES.SwitchStatement:
+                                            symbol = this.push(this.add({
+                                                type: this.TYPES.SwitchBlock
+                                            }));
+                                            break;
+                                        case this.TYPES.WhileExpression:
+                                            symbol = this.push(this.add({
+                                                type: this.TYPES.WhileBlock
+                                            }));
+                                            break;
+                                        case this.TYPES.IfStatement:
+                                            symbol = this.push(this.add({
+                                                type: this.TYPES.IfBlock
+                                            }));
+                                            break;
+                                            
+                                        default:
+                                            
+                                            switch (previousToken.type) {
+                                                case this.TYPES.Semicolon: //fall through
+                                                case this.TYPES.Keyword:
+                                                    symbol = this.push(this.add({
+                                                        type: this.TYPES.Block
+                                                    }));
+                                                    break;
+                                                    
+                                                default:
+                                                    symbol = this.push(this.add({
+                                                        type: this.TYPES.ObjectLiteral
+                                                    }));
+                                            }
+                                    }
                                 }
                             }
                             break;
