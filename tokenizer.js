@@ -249,7 +249,7 @@ Tokenizer.prototype = {
             }
             if (chr == "-" || chr == "+") {
                 nextChr = this.peek(1);
-                if (/[\d.]/.test(nextChr)) {
+                if (/[\d.]/.test(nextChr) && this.lastToken.type != this.TYPES.NumericLiteral) {
                     this.newToken(this.TYPES.NumericLiteral, chr);
                     continue;
                 }
