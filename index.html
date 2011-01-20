@@ -12,17 +12,22 @@
                 width: 98%;
             }
             
-            #output div {
-                margin-left: 10px;
+            #output div.symbol {
+                margin: 2px 0 2px 10px;
+                border-left: 1px solid grey;
+                border-top: 1px solid grey;
+                border-bottom: 1px solid grey;
             }
             
             #txtSrc {
                 height: 300px;
             }
+            
             #output {
-            	height:300px;
-				overflow:auto;
+                height: 300px;
+                overflow: auto;
             }
+            
             #btnParse {
                 width: 100%;
             }
@@ -97,31 +102,7 @@
     <body>
     <div id="col1">
         <textarea id="txtSrc">
-            function fn(a, b, c){
-            var arr = [1, 2, [3]], r;
-            r = arr[1] * arr[2][0] - arr.length;
-            (1, 2, 3)
-            var d = {
-            t: false,
-            a: "a",
-            "b": "b",
-            c: {
-            d: "d"
-            },
-            g: /foo/
-            }, f = "foobra", h, i = 23;
-            function fn1(){
-            }
-            fn1(1, "2", false, {
-            a: "a"
-            }, function(){
-            });
-            {
-            var j;
-            }
-            var g = function(){
-            };
-            }
+            a.b["c"].d() = bar;
         </textarea>
         <button id="btnParse" onclick="parseSource();">
             Parse
@@ -131,4 +112,7 @@
         <div id="output">
         </div>
     </div>
+    <script type="text/javascript">
+        parseSource();
+    </script>
 </html>

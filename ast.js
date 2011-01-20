@@ -70,7 +70,7 @@ AstGenerator.prototype = {
         BooleanLiteral: "BooleanLiteral",
         ArrayLiteral: "ArrayLiteral",
         ObjectLiteral: "ObjectLiteral",
-        StringLiteral: "StringLiteral",	
+        StringLiteral: "StringLiteral",
         NumericLiteral: "NumericLiteral",
         RegularExpressionLiteral: "RegularExpressionLiteral"
     },
@@ -178,14 +178,19 @@ AstGenerator.prototype = {
                             }));
                             
                             break;
-							
-						case "this":
+                            
+                        case "this":
+                            if (previousToken.type == TYPES.Semicolon) {
+                                symbol = this.push(this.add({
+                                    type: this.TYPES.Statement
+                                }));
+                            }
                             symbol = this.add({
                                 type: this.TYPES.Keyword,
                                 name: token.data
-                            });						
-							break;
-							
+                            });
+                            break;
+                            
                         default:
                             symbol = this.add({
                                 type: this.TYPES.Keyword,
@@ -215,6 +220,7 @@ AstGenerator.prototype = {
                                     type: this.TYPES.Statement
                                 }));
                             }
+                            
                             symbol = this.add({
                                 type: this.TYPES.Identifier,
                                 name: token.data
@@ -273,6 +279,10 @@ AstGenerator.prototype = {
                                 }));
                             }
                             else {
+                                if (head.type == this.TYPES.MemberExpression) {
+                                    this.pop();
+                                    this.pop();
+                                }
                                 // replace symbol with AssignmentExpression
                                 symbol = this.push(this.add({
                                     type: this.TYPES.AssignmentExpression,
@@ -283,7 +293,8 @@ AstGenerator.prototype = {
                             
                         case ".":
                             symbol = this.push(this.add({
-                                type: this.TYPES.MemberExpression
+                                type: this.TYPES.MemberExpression,
+                                stream: [this.take()]
                             }));
                             break;
                             
@@ -303,8 +314,8 @@ AstGenerator.prototype = {
                             popTo[this.TYPES.GroupingExpression] = 1;
                             popTo[this.TYPES.ArrayLiteral] = 1;
                             popTo[this.TYPES.Statement] = 1;
-							popTo[this.TYPES.ObjectLiteral] = 1;
-							
+                            popTo[this.TYPES.ObjectLiteral] = 1;
+                            
                             while (!(this.head.type in popTo)) {
                                 this.pop();
                             }
@@ -313,8 +324,13 @@ AstGenerator.prototype = {
                             
                         case "(":
                             if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
+                                if (head.type == this.TYPES.MemberExpression) {
+                                    this.pop();
+                                }
+                                
                                 symbol = this.push(this.add({
-                                    type: this.TYPES.CallExpression
+                                    type: this.TYPES.CallExpression,
+                                    stream: [this.take()]
                                 }));
                             }
                             else {
@@ -343,8 +359,10 @@ AstGenerator.prototype = {
                         case "[":
                             if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
                                 symbol = this.push(this.add({
-                                    type: this.TYPES.MemberExpression
+                                    type: this.TYPES.MemberExpression,
+                                    stream: [this.take()]
                                 }));
+                                
                             }
                             else {
                                 symbol = this.push(this.add({
