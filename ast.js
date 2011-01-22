@@ -14,21 +14,24 @@ function AstGenerator(stream){
     };
     this.stack = [this.global, this.symbol];
     this.head = this.symbol;
-    this.lastToken = {
-        type: this.TYPES.LineTerminator
-    };
 }
 
 AstGenerator.prototype = {
     push: function(symbol){
+        console.log(symbol.type)
         this.stack.push(symbol);
         this.head = symbol;
         return symbol;
     },
-    pop: function(){
-        var symbol = this.stack.pop();
-        this.head = this.stack[this.stack.length - 1];
-        return this.head;
+    pop: function(count){
+        if (!count) {
+            count = 1;
+        }
+        while (count--) {
+            var symbol = this.stack.pop();
+            this.head = this.stack[this.stack.length - 1];
+        }
+        return symbol;
     },
     add: function(symbol){
         if (!("stream" in this.head)) {
@@ -56,22 +59,28 @@ AstGenerator.prototype = {
         MultiplicativeExpression: "MultiplicativeExpression",
         MemberExpression: "MemberExpression",
         AssignmentExpression: "AssignmentExpression",
-        Statement: "Statement",
         FormalParameterList: "FormalParameterList",
         SwitchStatement: "SwitchStatement",
+        Arguments: "Arguments",
         SwitchExpression: "SwitchExpression",
         SwitchBlock: "SwitchBlock",
         CaseStatement: "CaseStatement",
-        WhileStatement: "WhileStatement",
+        CaseClause: "CaseClause",
+        IterationStatement: "IterationStatement",
         WhileExpression: "WhileExpression",
-        WhileBlock: "WhileBlock",
+        LogicalExpression: "LogicalExpression",
+        ForExpression: "ForExpression",
+        ForInExpression: "ForInExpression",
+        IterationBlock: "IterationBlock ",
+        ForStatement: "ForStatement",
         IfStatement: "IfStatement",
+        PostfixExpression: "PostfixExpression",
         IfExpression: "IfExpression",
-        IfBlock: "IfBlock",
-        ElseExpression: "ElseExpression",
+        ElseStatement: "ElseStatement",
         ElseBlock: "ElseBlock",
-        Arguments: "Arguments",
-        StatementList: "StatementList",
+        UnaryExpression: "UnaryExpression",
+        EqualityExpression: "EqualityExpression",
+        CaseBlock: "CaseBlock",
         Punctuator: "Punctuator",
         Parameter: "Parameter",
         Initializer: "Initializer",
@@ -93,457 +102,580 @@ AstGenerator.prototype = {
     readNext: function(){
         return this.stream[this.pos++];
     },
+    
     read: function(){
         var TYPES = Tokenizer.prototype.TYPES;
         var token, previousToken = {
             type: TYPES.Semicolon
         }, head, symbol;
         
-        while (this.pos < this.length) {
-            token = this.readNext();
-            head = this.head;
-            
-            // todo: implement ASI
-            if (token.type == TYPES.LineTerminator) {
-                //ignore the LineTerminator unless we need to do ASI
-                var skip = true;
-                if (this.lastToken.type != TYPES.Semicolon) {
-                    //set skip to false if token was replaced by Semicolon
-                }
-                if (skip) {
-                    continue;
+        var ast = this;
+        var T = this.TYPES;
+        
+        function popWhile(){
+            var args = Array.prototype.slice.call(arguments), l = args.length, types = {};
+            while (l--) {
+                types[args[l]] = 1;
+            }
+            while (ast.head.type in types) {
+                ast.pop();
+            }
+        }
+        
+        function popToAndIncluding(){
+            var args = Array.prototype.slice.call(arguments), l = args.length, types = {};
+            while (l--) {
+                types[args[l]] = 1;
+            }
+            while (true) {
+                if (ast.pop().type in types) {
+                    break;
                 }
             }
-            
-            switch (token.type) {
-            
-                case TYPES.Semicolon:
-                    var popTo = {};
-                    popTo[this.TYPES.SourceElement] = 1;
-                    popTo[this.TYPES.StatementList] = 1;
-                    popTo[this.TYPES.IfBlock] = 1;
-                    popTo[this.TYPES.ElseBlock] = 1;
-                    while (!(this.head.type in popTo)) {
-                        this.pop();
+        }
+        
+        function popWhileNot(){
+            var args = Array.prototype.slice.call(arguments), l = args.length, types = {};
+            while (l--) {
+                types[args[l]] = 1;
+            }
+            while (!(ast.head.type in types)) {
+                ast.pop();
+            }
+        }
+        
+        function popIfRequired(){
+            while (ast.head.endOnPop) {
+                ast.pop();
+            }
+        }
+        
+       // try {
+            while (this.pos < this.length) {
+                this.latToken = token;
+                token = this.readNext();
+                head = this.head;
+                
+                // todo: implement ASI
+                if (token.type == TYPES.LineTerminator) {
+                    this.lineNumber++;
+                    this.linePos = this.pos;
+                    //ignore the LineTerminator unless we need to do ASI
+                    var asi = false;
+                    if (previousToken.type != TYPES.Semicolon) {
+                        console.log(previousToken.type)
+                        // after comments
+                        if (previousToken.type == TYPES.CommentSingleLine || previousToken.type == TYPES.CommentMultiLine) {
+                            asi = true;
+                        }
+                        
                     }
-                    break;
-                case TYPES.Keyword:
-                    
-                    switch (token.data) {
-                        case "function":
-                            console.log(previousToken.type);
-                            symbol = this.push(this.add({
-                                type: (previousToken.type == TYPES.Semicolon) ? this.TYPES.FunctionDeclaration : this.TYPES.FunctionExpression
-                            }));
-                            // move through the identifier and the formal parameter list
-                            token = this.readNext();
-                            if (token.type == TYPES.Identifier) {
-                                symbol.name = token.data;
-                                token = this.readNext();
-                            }
-                            this.push(this.add({
-                                type: this.TYPES.FormalParameterList
-                            }));
-                            
-                            while (token.data != ")") {
-                                if (token.type == TYPES.Identifier) {
-                                    this.add({
-                                        type: this.TYPES.Identifier,
-                                        name: token.data
-                                    });
-                                }
-                                token = this.readNext();
-                            }
-                            this.pop(); // FormalParameterList
-                            break;
-                            
-                        case "var":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.VariableStatement
-                            }));
-                            break;
-                            
-                        case "switch":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.SwitchStatement
-                            }));
-                            break;
-                            
-                        case "while":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.WhileStatement
-                            }));
-                            break;
-                            
-                        case "case":
-                            while (this.head.type != this.TYPES.SwitchBlock) {
-                                this.pop();
-                            }
-                            symbol = this.push(this.add({
-                                type: this.TYPES.CaseStatement
-                            }));
-                            
-                            symbol = this.push(this.add({
-                                type: this.TYPES.CaseClause
-                            }));
-                            
-                            break;
-                        case "if":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.IfStatement
-                            }));
-                            break;
-                            
-                        case "else":
-                            symbol = this.add({
-                                type: this.TYPES.ElseExpression
-                            });
-                            
-                            break;
-                            
-                        case "default":
-                            while (this.head.type != this.TYPES.SwitchBlock) {
-                                this.pop();
-                            }
-                            symbol = this.push(this.add({
-                                type: this.TYPES.CaseStatement
-                            }));
-                            
-                            symbol = this.push(this.add({
-                                type: this.TYPES.StatementList
-                            }));
-                            
-                            break;
-                            
-                        case "this":
-                            if (previousToken.type == TYPES.Semicolon) {
-                                symbol = this.push(this.add({
-                                    type: this.TYPES.Statement
-                                }));
-                            }
-                            symbol = this.add({
-                                type: this.TYPES.Keyword,
-                                name: token.data
-                            });
-                            break;
-                            
-                        default:
-                            symbol = this.add({
-                                type: this.TYPES.Keyword,
-                                name: token.data
-                            });
-                    }
-                    break;
-                    
-                case TYPES.Identifier:
-                    switch (head.type) {
-                        case this.TYPES.VariableStatement:
-                            symbol = this.push(this.add({
-                                type: this.TYPES.VariableDeclaration,
-                                name: token.data
-                            }));
-                            break;
-                            
-                        case this.TYPES.ObjectLiteral:
-                            symbol = this.push(this.add({
-                                type: this.TYPES.PropertyAssignment,
-                                name: token.data
-                            }));
-                            break
-                        default:
-                            if (previousToken.type == TYPES.Semicolon) {
-                                symbol = this.push(this.add({
-                                    type: this.TYPES.Statement
-                                }));
-                            }
-                            
-                            symbol = this.add({
-                                type: this.TYPES.Identifier,
-                                name: token.data
-                            });
-                    }
-                    if (head.type == this.TYPES.MemberExpression) {
-                        this.pop(); //MemberExpression
-                    }
-                    break;
-                    
-                case TYPES.StringLiteral:
-                    if (head.type == this.TYPES.ObjectLiteral) {
-                        symbol = this.push(this.add({
-                            type: this.TYPES.PropertyAssignment,
-                            name: token.value
-                        }));
+                    if (asi) {
+                        token = {
+                            type: TYPES.Semicolon
+                        };
                     }
                     else {
-                        this.add({
-                            type: this.TYPES.StringLiteral,
-                            value: token.value
-                        });
+                        continue;
                     }
-                    break;
-                    
-                case TYPES.NumericLiteral:
-                    this.add({
-                        type: this.TYPES.NumericLiteral,
-                        value: token.value
-                    });
-                    
-                    break;
-                    
-                case TYPES.BooleanLiteral:
-                    this.add({
-                        type: this.TYPES.BooleanLiteral,
-                        value: token.data
-                    });
-                    break;
-                    
-                case TYPES.RegularExpressionLiteral:
-                    this.add({
-                        type: this.TYPES.RegularExpressionLiteral,
-                        value: token.value
-                    });
-                    break;
-                    
-                case TYPES.Punctuator:
-                    
-                    switch (token.data) {
-                        case "=":
-                            if (head.type == this.TYPES.VariableDeclaration) {
-                                this.push(symbol);
+                }
+                
+                switch (token.type) {
+                
+                    case TYPES.Semicolon:
+                        popWhileNot(T.SourceElement, T.Block, T.CaseBlock, T.ForExpression);
+                        break;
+                    case TYPES.Keyword:
+                        
+                        switch (token.data) {
+                            case "function":
+                                symbol = this.push(this.add({
+                                    type: (previousToken.type == TYPES.Semicolon) ? T.FunctionDeclaration : T.FunctionExpression,
+                                    pos: token.pos
+                                }));
+                                // move through the identifier and the formal parameter list
+                                token = this.readNext();
+                                if (token.type == TYPES.Identifier) {
+                                    symbol.name = token.data;
+                                    token = this.readNext();
+                                }
                                 this.push(this.add({
-                                    type: this.TYPES.Initializer
-                                }));
-                            }
-                            else {
-                                if (head.type == this.TYPES.MemberExpression) {
-                                    this.pop();
-                                    this.pop();
-                                }
-                                // replace symbol with AssignmentExpression
-                                symbol = this.push(this.add({
-                                    type: this.TYPES.AssignmentExpression,
-                                    stream: [this.take()]
-                                }));
-                            }
-                            break;
-                            
-                        case "-": //fall through	
-                        case "+":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.AdditiveExpression,
-                                stream: [this.take()]
-                            }));
-                            symbol = this.add({
-                                type: this.TYPES.Punctuator,
-                                value: token.data
-                            });
-                            break;
-                            
-                        case "<"://fallthrough
-                        case ">"://fallthrough
-                        case "<="://fallthrough
-                        case ">=":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.RelationalExpression,
-                                stream: [this.take()]
-                            }));
-                            symbol = this.add({
-                                type: this.TYPES.Punctuator,
-                                value: token.data
-                            });
-                            break;
-                            
-                        case "/":
-                        case "*":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.MultiplicativeExpression,
-                                stream: [this.take()]
-                            }));
-                            symbol = this.add({
-                                type: this.TYPES.Punctuator,
-                                value: token.data
-                            });
-                            break;
-                        case ".":
-                            symbol = this.push(this.add({
-                                type: this.TYPES.MemberExpression,
-                                stream: [this.take()]
-                            }));
-                            break;
-                            
-                        case ":":
-                            if (head.type == this.TYPES.CaseClause) {
-                                this.pop();
-                                symbol = this.push(this.add({
-                                    type: this.TYPES.StatementList
-                                }));
-                            }
-                            break;
-                            
-                        case ",":
-                            var popTo = {};
-                            popTo[this.TYPES.VariableStatement] = 1;
-                            popTo[this.TYPES.CallExpression] = 1;
-                            popTo[this.TYPES.GroupingExpression] = 1;
-                            popTo[this.TYPES.ArrayLiteral] = 1;
-                            popTo[this.TYPES.Statement] = 1;
-                            popTo[this.TYPES.ObjectLiteral] = 1;
-                            
-                            while (!(this.head.type in popTo)) {
-                                this.pop();
-                            }
-                            
-                            break;
-                            
-                        case "(":
-                            
-                            if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
-                                if (head.type == this.TYPES.MemberExpression) {
-                                    this.pop();
-                                }
-                                
-                                symbol = this.push(this.add({
-                                    type: this.TYPES.CallExpression,
-                                    stream: [this.take()]
-                                }));
-                            }
-                            else {
-                                switch (head.type) {
-                                    case this.TYPES.WhileStatement:
-                                        symbol = this.push(this.add({
-                                            type: this.TYPES.WhileExpression
-                                        }));
-                                        break;
-                                        
-                                    case this.TYPES.SwitchStatement:
-                                        symbol = this.push(this.add({
-                                            type: this.TYPES.SwitchExpression
-                                        }));
-                                        break;
-                                    case this.TYPES.IfStatement:
-                                        symbol = this.push(this.add({
-                                            type: this.TYPES.IfExpression
-                                        }));
-                                        break;
-                                    default:
-                                        symbol = this.push(this.add({
-                                            type: this.TYPES.GroupingExpression
-                                        }));
-                                }
-                            }
-                            break;
-                            
-                        case ")":
-                            
-                            this.pop();
-                            if (this.head.type == this.TYPES.GroupingExpression) {
-                                this.pop();
-                            }
-                            break;
-                            
-                        case "[":
-                            if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
-                                symbol = this.push(this.add({
-                                    type: this.TYPES.MemberExpression,
-                                    stream: [this.take()]
+                                    type: T.FormalParameterList,
+                                    pos: token.pos
                                 }));
                                 
-                            }
-                            else {
+                                while (token.data != ")") {
+                                    if (token.type == TYPES.Identifier) {
+                                        this.add({
+                                            type: T.Identifier,
+                                            name: token.data,
+                                            pos: token.pos
+                                        });
+                                    }
+                                    token = this.readNext();
+                                }
+                                this.pop(); // FormalParameterList
+                                break;
+                                
+                            case "var":
                                 symbol = this.push(this.add({
-                                    type: this.TYPES.ArrayLiteral
+                                    type: T.VariableStatement,
+                                    pos: token.pos,
+                                    endOnPop: true
                                 }));
-                            }
-                            break;
-                            
-                        case "]":
-                            this.pop();
-                            break;
-                            
-                        case "{":
-                            console.log(head.type);
-                            if (head.type == this.TYPES.FunctionDeclaration || head.type == this.TYPES.FunctionExpression) {
+                                break;
+                                
+                            case "switch":
                                 symbol = this.push(this.add({
-                                    type: this.TYPES.SourceElement
+                                    type: T.SwitchStatement,
+                                    endOnPop: true,
+                                    pos: token.pos
                                 }));
-                            }
-                            else {
-                                if (symbol.type == this.TYPES.ElseExpression) {
+                                break;
+                                
+                            case "while": //fallthrough
+                            case "for":
+                                symbol = this.push(this.add({
+                                    type: T.IterationStatement,
+                                    name: token.data,
+                                    endOnPop: true,
+                                    pos: token.pos
+                                }));
+                                break;
+                                
+                            case "case":
+                                popWhileNot(T.Block);
+                                symbol = this.push(this.add({
+                                    type: T.CaseStatement,
+                                    pos: token.pos
+                                }));
+                                
+                                symbol = this.push(this.add({
+                                    type: T.CaseClause,
+                                    pos: token.pos
+                                }));
+                                
+                                break;
+                            case "if":
+                                symbol = this.push(this.add({
+                                    type: T.IfStatement,
+                                    endOnPop: true,
+                                    pos: token.pos
+                                }));
+                                break;
+                                
+                            case "else":
+                                symbol = this.push(this.add({
+                                    type: T.ElseStatement,
+                                    endOnPop: true,
+                                    pos: token.pos
+                                }));
+                                
+                                break;
+                                
+                            case "in":
+                                popIfRequired();
+                                symbol = this.add({
+                                    type: T.Keyword,
+                                    value: token.data,
+                                    pos: token.pos
+                                });
+                                break;
+                                
+                            case "default":
+                                popWhileNot(T.Block);
+                                symbol = this.push(this.add({
+                                    type: T.CaseStatement,
+                                    pos: token.pos
+                                }));
+                                
+                                symbol = this.push(this.add({
+                                    type: T.CaseBlock,
+                                    pos: token.pos
+                                }));
+                                
+                                break;
+                                
+                            case "this":
+                                symbol = this.add({
+                                    type: T.Keyword,
+                                    name: token.data,
+                                    pos: token.pos
+                                });
+                                break;
+                                
+                            default:
+                                symbol = this.add({
+                                    type: T.Keyword,
+                                    name: token.data,
+                                    pos: token.pos
+                                });
+                        }
+                        break;
+                        
+                    case TYPES.Identifier:
+                        switch (head.type) {
+                            case T.VariableStatement:
+                                symbol = this.push(this.add({
+                                    type: T.VariableDeclaration,
+                                    name: token.data,
+                                    pos: token.pos,
+                                    endOnPop: true
+                                }));
+                                break;
+                                
+                            case T.ObjectLiteral:
+                                symbol = this.push(this.add({
+                                    type: T.PropertyAssignment,
+                                    name: token.data,
+                                    pos: token.pos
+                                }));
+                                break
+                            default:
+                                
+                                symbol = this.add({
+                                    type: T.Identifier,
+                                    name: token.data,
+                                    pos: token.pos
+                                });
+                        }
+                        if (head.type == T.MemberExpression) {
+                            this.pop(); //MemberExpression
+                        }
+                        break;
+                        
+                    case TYPES.StringLiteral:
+                        if (head.type == T.ObjectLiteral) {
+                            symbol = this.push(this.add({
+                                type: T.PropertyAssignment,
+                                name: token.value,
+                                pos: token.pos
+                            }));
+                        }
+                        else {
+                            this.add({
+                                type: T.StringLiteral,
+                                value: token.value,
+                                pos: token.pos
+                            });
+                        }
+                        break;
+                        
+                    case TYPES.NumericLiteral:
+                        this.add({
+                            type: T.NumericLiteral,
+                            value: token.value,
+                            pos: token.pos
+                        });
+                        
+                        break;
+                        
+                    case TYPES.BooleanLiteral:
+                        this.add({
+                            type: T.BooleanLiteral,
+                            value: token.data,
+                            pos: token.pos
+                        });
+                        break;
+                        
+                    case TYPES.RegularExpressionLiteral:
+                        this.add({
+                            type: T.RegularExpressionLiteral,
+                            value: token.value,
+                            pos: token.pos
+                        });
+                        break;
+                        
+                    case TYPES.Punctuator:
+                        
+                        switch (token.data) {
+                            case "!":
+                                symbol = this.push(this.add({
+                                    type: T.UnaryExpression,
+                                    value: token.data,
+                                    pos: token.pos
+                                }));
+                                break;
+                                
+                            case "=":
+                                if (head.type == T.VariableDeclaration) {
+                                    this.push(symbol);
+                                    this.push(this.add({
+                                        type: T.Initializer,
+                                        pos: token.pos
+                                    }));
+                                }
+                                else {
+                                    if (head.type == T.MemberExpression) {
+                                        this.pop();
+                                        this.pop();
+                                    }
+                                    // replace symbol with AssignmentExpression
                                     symbol = this.push(this.add({
-                                        type: this.TYPES.ElseBlock
+                                        type: T.AssignmentExpression,
+                                        stream: [this.take()],
+                                        pos: token.pos
+                                    }));
+                                }
+                                break;
+                                
+                            case "-": //fall through	
+                            case "+":
+                                symbol = this.push(this.add({
+                                    type: T.AdditiveExpression,
+                                    stream: [this.take()],
+                                    value: token.data,
+                                    pos: token.pos,
+                                    endOnPop: true
+                                }));
+                                
+                                break;
+                                
+                            case "++":
+                            case "--":
+                                this.add({
+                                    type: T.PostfixExpression,
+                                    value: token.data,
+                                    stream: [this.take()],
+                                    endOnPop: true,
+                                    pos: token.pos
+                                });
+                                
+                                break;
+                                
+                            case "||":
+                            case "&&":
+                                popWhile(T.UnaryExpression, T.AssignmentExpression, T.MultiplicativeExpression, T.AdditiveExpression, T.RelationalExpression);
+                                symbol = this.push(this.add({
+                                    type: T.LogicalExpression,
+                                    stream: [this.take()],
+                                    value: token.data,
+                                    pos: token.pos,
+                                    endOnPop: true
+                                }));
+                                break;
+                                
+                            case "<"://fallthrough
+                            case ">"://fallthrough
+                            case "<="://fallthrough
+                            case ">=":
+                                symbol = this.push(this.add({
+                                    type: T.RelationalExpression,
+                                    stream: [this.take()],
+                                    value: token.data,
+                                    pos: token.pos,
+                                    endOnPop: true
+                                }));
+                                break;
+                                
+                            case "==":
+                                popWhile(T.UnaryExpression, T.AssignmentExpression, T.MultiplicativeExpression, T.AdditiveExpression, T.RelationalExpression);
+                                symbol = this.push(this.add({
+                                    type: T.EqualityExpression,
+                                    stream: [this.take()],
+                                    pos: token.pos,
+                                    endOnPop: true
+                                }));
+                                break;
+                                
+                            case "/":
+                            case "*":
+                                symbol = this.push(this.add({
+                                    type: T.MultiplicativeExpression,
+                                    value: token.data,
+                                    stream: [this.take()],
+                                    pos: token.pos,
+                                    endOnPop: true
+                                }));
+                                break;
+                            case ".":
+                                symbol = this.push(this.add({
+                                    type: T.MemberExpression,
+                                    stream: [this.take()],
+                                    pos: token.pos
+                                }));
+                                break;
+                                
+                            case ":":
+                                if (head.type == T.CaseClause) {
+                                    this.pop();
+                                    symbol = this.push(this.add({
+                                        type: T.CaseBlock,
+                                        pos: token.pos
+                                    }));
+                                }
+                                break;
+                                
+                            case ",":
+                                popWhileNot(T.VariableStatement, T.Arguments, T.GroupingExpression, T.ArrayLiteral, T.ObjectLiteral);
+                                break;
+                                
+                            case "(":
+                                
+                                if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
+                                    if (head.type == T.MemberExpression) {
+                                        this.pop();
+                                    }
+                                    
+                                    symbol = this.push(this.add({
+                                        type: T.CallExpression,
+                                        stream: [this.take()],
+                                        pos: token.pos
+                                    }));
+                                    this.push(this.add({
+                                        type: T.Arguments,
+                                        pos: token.pos,
+                                        endOnPop: true
                                     }));
                                 }
                                 else {
                                     switch (head.type) {
-                                        case this.TYPES.SwitchStatement:
+                                        case T.IterationStatement:
+                                            switch (head.name) {
+                                                case "while":
+                                                    symbol = this.push(this.add({
+                                                        type: T.WhileExpression,
+                                                        pos: token.pos
+                                                    }));
+                                                    
+                                                    break;
+                                                case "for":
+                                                    symbol = this.push(this.add({
+                                                        type: T.ForExpression,
+                                                        pos: token.pos
+                                                    }));
+                                                    
+                                                    break;
+                                                case "forin":
+                                                    symbol = this.push(this.add({
+                                                        type: T.ForInExpression,
+                                                        pos: token.pos
+                                                    }));
+                                                    
+                                                    break;
+                                            }
+                                            break;
+                                            
+                                        case T.SwitchStatement:
                                             symbol = this.push(this.add({
-                                                type: this.TYPES.SwitchBlock
+                                                type: T.SwitchExpression,
+                                                pos: token.pos
                                             }));
                                             break;
-                                        case this.TYPES.WhileExpression:
+                                        case T.IfStatement:
                                             symbol = this.push(this.add({
-                                                type: this.TYPES.WhileBlock
+                                                type: T.IfExpression,
+                                                pos: token.pos
                                             }));
                                             break;
-                                        case this.TYPES.IfStatement:
+                                        default:
                                             symbol = this.push(this.add({
-                                                type: this.TYPES.IfBlock
+                                                type: T.GroupingExpression,
+                                                pos: token.pos
+                                            }));
+                                    }
+                                }
+                                break;
+                                
+                            case ")":
+                                popWhile(T.MemberExpression, T.CallExpression, T.RelationalExpression, T.UnaryExpression, T.LogicalExpression, T.EqualityExpression, T.GroupingExpression, T.MultiplicativeExpression, T.AdditiveExpression, T.Arguments, T.IfExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
+                                break;
+                                
+                            case "[":
+                                if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
+                                    symbol = this.push(this.add({
+                                        type: T.MemberExpression,
+                                        stream: [this.take()],
+                                        pos: token.pos
+                                    }));
+                                    
+                                }
+                                else {
+                                    symbol = this.push(this.add({
+                                        type: T.ArrayLiteral,
+                                        pos: token.pos
+                                    }));
+                                }
+                                break;
+                                
+                            case "]":
+                                break;
+                                
+                            case "{":
+                                if (head.type == T.FunctionDeclaration || head.type == T.FunctionExpression) {
+                                    symbol = this.push(this.add({
+                                        type: T.SourceElement,
+                                        pos: token.pos
+                                    }));
+                                }
+                                else {
+                                    switch (head.type) {
+                                        case T.SwitchStatement:
+                                        case T.IterationStatement:
+                                        case T.IfExpression:
+                                        case T.CallExpression:
+                                        case T.IfStatement: //IfExpression
+                                            symbol = this.push(this.add({
+                                                type: T.Block,
+                                                pos: token.pos
                                             }));
                                             break;
                                             
                                         default:
                                             
                                             switch (previousToken.type) {
-                                                case this.TYPES.Semicolon: //fall through
-                                                case this.TYPES.Keyword:
+                                                case T.Semicolon: //fall through
+                                                case T.Keyword:
                                                     symbol = this.push(this.add({
-                                                        type: this.TYPES.Block
+                                                        type: T.Block,
+                                                        pos: token.pos
                                                     }));
                                                     break;
                                                     
                                                 default:
                                                     symbol = this.push(this.add({
-                                                        type: this.TYPES.ObjectLiteral
+                                                        type: T.ObjectLiteral,
+                                                        pos: token.pos
                                                     }));
                                             }
                                     }
                                 }
-                            }
-                            break;
-                            
-                        case "}":
-                            
-                            this.pop(); // close the pair
-                            if (head.type == this.TYPES.SourceElement) {
-                                this.pop(); // FunctionExpression/FunctionDeclaration
-                            }
-                            if (head.type == this.TYPES.PropertyAssignment) {
-                                this.pop(); //PropertyAssignment
-                            }
-                            if (head.type == this.TYPES.StatementList) {
-                                while (this.head.type != this.TYPES.SourceElement) {
-                                    this.pop();
+                                break;
+                                
+                            case "}":
+                                if (this.head.type == T.CaseBlock) {
+                                    this.pop(2);
                                 }
-                            }
-                            break;
-                            
-                        default:
-                            symbol = this.add({
-                                type: this.TYPES.Punctuator,
-                                value: token.data
-                            });
-                    }
-                    break;
+                                this.pop();
+                                popIfRequired();
+                                break;
+                                
+                            default:
+                                symbol = this.add({
+                                    type: T.Punctuator,
+                                    value: token.data,
+                                    pos: token.pos
+                                });
+                        }
+                        break;
+                }
+                // see if there are any symbols that should be closed
+                
+                previousToken = token;
             }
-            
-            previousToken = token;
-        }
-        
-        console.log(this.head);
-        if (this.stack.length > 2) {
-            console.log(this.stack[this.stack.length - 1])
-            console.log("Non-terminated " + this.stack[this.stack.length - 1].type);
-        }
-        return this.symbol;
+            popWhileNot(T.SourceElement);
+            console.log(this.head);
+            if (this.stack.length > 2) {
+                throw new Error("Non-terminated " + this.stack[this.stack.length - 1].type);
+            }
+            console.log(this.symbol.stream)
+            return this.symbol;
+			/*
+        } 
+        catch (e) {
+            console.log(e)
+            console.log("position:" + token.pos.join());
+            throw e;
+        }*/
     }
 };
