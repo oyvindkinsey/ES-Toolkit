@@ -3,7 +3,9 @@ function Tokenizer(src){
     this.length = this.source.length;
     this.pos = 0;
     this.tokens = [];
-    this.lastToken = {}
+    this.lastToken = {};
+    this.line = 0;
+    this.col = 0;
 }
 
 Tokenizer.prototype = {
@@ -47,7 +49,7 @@ Tokenizer.prototype = {
         return map;
     })(),
     log: function(msg){
-        console.log("Tokenizer: " + msg);
+        //console.log("Tokenizer: " + msg);
     },
     /*
      * Returns the next set of consecutive non-space characters
@@ -89,7 +91,8 @@ Tokenizer.prototype = {
         this.lastToken = token = {
             type: type,
             data: data,
-            value: value
+            value: value,
+            pos: [this.line, this.col]
         };
         this.tokens.push(token);
         
@@ -205,8 +208,10 @@ Tokenizer.prototype = {
                 throw new Error("Uncontrolled loop");
             }
             
-            if (chr == "\n" && this.lastToken) {
-                if (this.lastToken && this.lastToken.type == this.TYPES.LineTerminator) {
+            if (chr == "\n") {
+                this.line++;
+                this.col = 0;
+                if (this.lastToken.type == this.TYPES.LineTerminator) {
                     //no need to add multiple LineTerminator tokens
                     this.pos++;
                 }
@@ -215,7 +220,7 @@ Tokenizer.prototype = {
                 }
                 continue;
             }
-            
+            this.col++;
             //skip whitespace
             if (/\s/.test(chr)) {
                 this.pos++;
@@ -242,14 +247,16 @@ Tokenizer.prototype = {
                 }
                 
                 // having two numbers and two regular expressions afte another are both invalid and weird
-                if (this.lastToken.type != this.TYPES.NumericLiteral && this.lastToken.type != this.TYPES.RegularExpressionLiteral) {
+                if (this.lastToken.type != this.TYPES.NumericLiteral &&
+                this.lastToken.type != this.TYPES.RegularExpressionLiteral &&
+                this.lastToken.type != this.TYPES.Identifier) {
                     this.newToken(this.TYPES.RegularExpressionLiteral, chr);
                     continue;
                 }
             }
             if (chr == "-" || chr == "+") {
                 nextChr = this.peek(1);
-                if (/[\d.]/.test(nextChr) && this.lastToken.type != this.TYPES.NumericLiteral) {
+                if (/[\d.]/.test(nextChr) && (this.lastToken.type == this.TYPES.LineTerminator || this.lastToken.type == this.TYPES.Punctuator)) {
                     this.newToken(this.TYPES.NumericLiteral, chr);
                     continue;
                 }
@@ -305,6 +312,7 @@ Tokenizer.prototype = {
                     this.newToken(this.TYPES.Identifier, word);
             }
         }
+        
         return this.tokens;
     }
 };
