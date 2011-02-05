@@ -487,17 +487,21 @@ AstGenerator.prototype = {
                                 
                             case "-": //fall through	
                             case "+":
-                                symbol = this.push(this.add({
-                                    type: T.AdditiveExpression,
-                                    stream: [this.take()],
-                                    value: token.data,
-                                    pos: token.pos,
-                                    endOnPop: true
-                                }));
-                                this.add({
-                                    type: T.Punctuator,
-                                    value: token.data
-                                });
+                                if (head.type == T.AdditiveExpression || head.type == T.MultiplicativeExpression || head.type == T.AssignmentExpression || head.type == T.SourceElement) {
+                                    symbol = this.push(this.add({
+                                        type: T.UnaryExpression,
+                                        value: token.data
+                                    }));
+                                }
+                                else {
+                                    symbol = this.push(this.add({
+                                        type: T.AdditiveExpression,
+                                        stream: [this.take()],
+                                        value: token.data,
+                                        pos: token.pos,
+                                        endOnPop: true
+                                    }));
+                                }
                                 break;
                                 
                             case "++":
