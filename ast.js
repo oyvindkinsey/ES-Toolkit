@@ -393,10 +393,9 @@ AstGenerator.prototype = {
                             case T.ObjectLiteral:
                                 symbol = this.push(this.add({
                                     type: T.PropertyAssignment,
-                                    value: token.data,
                                     pos: token.pos
                                 }));
-                                break
+                            //fall through
                             default:
                                 
                                 symbol = this.add({
@@ -414,17 +413,14 @@ AstGenerator.prototype = {
                         if (head.type == T.ObjectLiteral) {
                             symbol = this.push(this.add({
                                 type: T.PropertyAssignment,
-                                value: token.value,
                                 pos: token.pos
                             }));
                         }
-                        else {
-                            this.add({
-                                type: T.StringLiteral,
-                                value: token.value,
-                                pos: token.pos
-                            });
-                        }
+                        this.add({
+                            type: T.StringLiteral,
+                            value: token.value,
+                            pos: token.pos
+                        });
                         break;
                         
                     case TYPES.NumericLiteral:
