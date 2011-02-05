@@ -119,8 +119,11 @@ Compiler.prototype = {
                 separationChar = ";";
                 break;
             case T.ShiftExpression:
+            case T.LogicalExpression:
+            case T.EqualityExpression:
                 separationChar = symbol.value;
                 break;
+                
             default:
             // push(symbol.value);
         
