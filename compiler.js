@@ -84,6 +84,9 @@ Compiler.prototype = {
             case T.Initializer:
                 push("=");
                 break;
+            case T.UnaryExpression:
+                push(symbol.value);
+                break;
             default:
             // push(symbol.value);
         
