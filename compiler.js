@@ -24,6 +24,12 @@ Compiler.prototype = {
                 push("(");
                 separationChar = ",";
                 break;
+            case T.IfExpression:
+                push("(");
+                break;
+            case T.ElseStatement:
+                push("else");
+                break;
             case T.CallExpression:
                 push(symbol.value + "(");
                 break;
@@ -34,7 +40,11 @@ Compiler.prototype = {
                 push(";");
                 break;
             case T.FunctionDeclaration:
+            case T.FunctionExpression:
                 push("function" + (symbol.value ? " " + symbol.value : ""));
+                break;
+            case T.IfStatement:
+                push("if");
                 break;
             default:
                 push(symbol.value);
@@ -60,6 +70,7 @@ Compiler.prototype = {
             case T.CallExpression:
             case T.GroupingExpression:
             case T.FormalParameterList:
+            case T.IfExpression:
                 push(")");
                 break;
         }
