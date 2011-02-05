@@ -692,6 +692,7 @@ AstGenerator.prototype = {
                             break;
                             
                         case "]":
+                            this.pop();
                             break;
                             
                         case "{":
