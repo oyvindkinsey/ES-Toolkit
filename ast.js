@@ -56,6 +56,7 @@ AstGenerator.prototype = {
         AdditiveExpression: "AdditiveExpression",
         RelationalExpression: "RelationalExpression",
         MultiplicativeExpression: "MultiplicativeExpression",
+        DotExpression: "DotExpression",
         MemberExpression: "MemberExpression",
         AssignmentExpression: "AssignmentExpression",
         FormalParameterList: "FormalParameterList",
@@ -462,7 +463,7 @@ AstGenerator.prototype = {
                                 }));
                             }
                             else {
-                                if (head.type == T.MemberExpression) {
+                                if (head.type == T.MemberExpression || head.type == T.DotExpression) {
                                     this.pop();
                                 }
                                 // replace symbol with AssignmentExpression
@@ -563,7 +564,8 @@ AstGenerator.prototype = {
                             break;
                         case ".":
                             symbol = this.push(this.add({
-                                type: T.MemberExpression,
+                                type: T.DotExpression,
+                                value: token.data,
                                 stream: [this.take()],
                                 pos: token.pos
                             }));
@@ -587,7 +589,7 @@ AstGenerator.prototype = {
                         case "(":
                             
                             if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
-                                if (head.type == T.MemberExpression) {
+                                if (head.type == T.MemberExpression || head.type == T.DotExpression) {
                                     this.pop();
                                 }
                                 
@@ -673,6 +675,7 @@ AstGenerator.prototype = {
                             if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
                                 symbol = this.push(this.add({
                                     type: T.MemberExpression,
+                                    value: token.data,
                                     stream: [this.take()],
                                     pos: token.pos
                                 }));
@@ -687,7 +690,7 @@ AstGenerator.prototype = {
                             break;
                             
                         case "]":
-                            this.pop();
+                            popToAndIncluding(T.ArrayLiteral, T.MemberExpression);
                             break;
                             
                         case "{":

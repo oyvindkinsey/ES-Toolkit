@@ -20,6 +20,9 @@ Compiler.prototype = {
                 separationChar = ";";
                 break;
             case T.SourceElement:
+                push("{");
+                separationChar = ";";
+                break;
             case T.ObjectLiteral:
                 push("{");
                 separationChar = ","
@@ -79,7 +82,7 @@ Compiler.prototype = {
                 push("if");
                 break;
             case T.Keyword:
-                if (this.prevSymbol.type == T.Identifier || (this.prevSymbol.type == T.Keyword && parent.type != T.MemberExpression)) {
+                if (parent.type != T.MemberExpression && (this.prevSymbol.type == T.Identifier || this.prevSymbol.type == T.Keyword)) {
                     push(" ");
                 }
                 push(symbol.value);
@@ -108,10 +111,10 @@ Compiler.prototype = {
                 push("default:");
                 break;
             case T.MemberExpression:
-                if (this.prevSymbol.type == T.Keyword) {
-                    push(" ");
-                }
-                separationChar = symbol.stream[1].type == T.Identifier ? "." : "[";
+                separationChar = "[";
+                break;
+            case T.DotExpression:
+                separationChar = ".";
                 break;
             case T.AssignmentExpression:
                 separationChar = "=";
@@ -180,13 +183,16 @@ Compiler.prototype = {
                 push(":");
                 break;
             case T.MemberExpression:
-                if (separationChar == "[") {
-                    push("]");
-                }
+                push("]");
                 break;
             case T.ArrayLiteral:
                 push("]");
                 break;
+            case T.CallExpression:
+                if (parent.type == "" || parent.type == T.SourceElement) {
+                    push(";");
+                    break;
+                }
         }
         this.prevSymbol = symbol;
     },
