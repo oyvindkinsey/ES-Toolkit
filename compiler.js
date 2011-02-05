@@ -24,10 +24,26 @@ Compiler.prototype = {
                 push("(");
                 separationChar = ",";
                 break;
+            case T.IterationStatement:
+                push(symbol.value);
+                break;
+            case T.Identifier:
+                push(symbol.value);
+                break;
+            case T.VariableDeclaration:
+                push(symbol.value);
+                break;
+            case T.NumericLiteral:
+                push(symbol.value);
+                break;
+            case T.RelationalExpression:
+                separationChar = symbol.value;
+                break;
             case T.IfExpression:
             case T.WhileExpression:
             case T.ForExpression:
                 push("(");
+                separationChar = ";";
                 break;
             case T.ElseStatement:
                 push("else");
@@ -59,8 +75,8 @@ Compiler.prototype = {
                 push("=");
                 break;
             default:
-                push(symbol.value);
-                
+            // push(symbol.value);
+        
         }
         
         
@@ -86,6 +102,9 @@ Compiler.prototype = {
             case T.WhileExpression:
             case T.ForExpression:
                 push(")");
+                break;
+            case T.PostfixExpression:
+                push(symbol.value);
                 break;
         }
     },

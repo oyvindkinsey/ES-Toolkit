@@ -194,11 +194,11 @@ AstGenerator.prototype = {
                 
                     case TYPES.Semicolon:
                         popWhileNot(T.SourceElement, T.Block, T.CaseBlock, T.ForExpression);
-                        symbol = this.add({
+                        /*symbol = this.add({
                             type: T.StatementTerminator,
                             value: token.data,
                             pos: token.pos
-                        });
+                        });*/
                         break;
                     case TYPES.Keyword:
                         
