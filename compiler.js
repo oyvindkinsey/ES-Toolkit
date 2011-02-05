@@ -21,10 +21,6 @@ Compiler.prototype = {
             case T.StringLiteral:
                 push("\"" + symbol.value + "\"");
                 break;
-            case T.AdditiveExpression:
-            case T.MultiplicativeExpression:
-                separationChar = symbol.value;
-                break;
             case T.FormalParameterList:
             case T.GroupingExpression:
                 push("(");
@@ -45,8 +41,9 @@ Compiler.prototype = {
             case T.NumericLiteral:
                 push(symbol.value);
                 break;
-            case T.RelationalExpression:
+            case T.MultiplicativeExpression:
             case T.AdditiveExpression:
+            case T.RelationalExpression:
             case T.MultiplicativeExpression:
                 separationChar = symbol.value;
                 break;
