@@ -83,7 +83,8 @@ Compiler.prototype = {
                 push("=");
                 break;
             case T.UnaryExpression:
-                push(symbol.value);
+                //make sure we don't emit ++ or -- when we have an UnaryEpression in an AdditiveExpression with the same operator 
+                push((b[b.length - 1] == symbol.value ? " " : "") + symbol.value);
                 break;
             default:
             // push(symbol.value);
