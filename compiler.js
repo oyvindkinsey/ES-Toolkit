@@ -105,6 +105,9 @@ Compiler.prototype = {
             case T.MemberExpression:
                 separationChar = symbol.stream[1].type == T.Identifier ? "." : "[";
                 break;
+            case T.AssignmentExpression:
+                separationChar = "=";
+                break;
             default:
             // push(symbol.value);
         
