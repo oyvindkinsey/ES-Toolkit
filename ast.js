@@ -67,6 +67,7 @@ AstGenerator.prototype = {
         SwitchExpression: "SwitchExpression",
         SwitchBlock: "SwitchBlock",
         CaseStatement: "CaseStatement",
+        DefaultStatement: "DefaultStatement",
         ThrowStatement: "ThrowStatement",
         ReturnStatement: "ReturnStatement",
         CaseClause: "CaseClause",
@@ -334,7 +335,7 @@ AstGenerator.prototype = {
                             case "default":
                                 popWhileNot(T.Block);
                                 symbol = this.push(this.add({
-                                    type: T.CaseStatement,
+                                    type: T.DefaultStatement,
                                     pos: token.pos
                                 }));
                                 
