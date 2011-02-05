@@ -100,7 +100,8 @@ AstGenerator.prototype = {
         ObjectLiteral: "ObjectLiteral",
         StringLiteral: "StringLiteral",
         NumericLiteral: "NumericLiteral",
-        RegularExpressionLiteral: "RegularExpressionLiteral"
+        RegularExpressionLiteral: "RegularExpressionLiteral",
+        ShiftExpression: "ShiftExpression"
     },
     log: function(msg){
         console.log("AST: " + msg);
@@ -740,7 +741,16 @@ AstGenerator.prototype = {
                                     this.pop(2);
                                 }
                                 break;
-                                
+                            case ">>":
+                            case ">>>":
+                            case "<<":
+                                symbol = this.push(this.add({
+                                    type: T.ShiftExpression,
+                                    value: token.data,
+                                    stream: [this.take()],
+                                    pos: token.pos
+                                }));
+                                break;
                             default:
                                 symbol = this.add({
                                     type: T.Punctuator,
