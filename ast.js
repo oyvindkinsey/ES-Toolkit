@@ -448,6 +448,7 @@ AstGenerator.prototype = {
                     
                     switch (token.data) {
                         case "!":
+                        case "~":
                             symbol = this.push(this.add({
                                 type: T.UnaryExpression,
                                 value: token.data,
@@ -498,14 +499,21 @@ AstGenerator.prototype = {
                             
                         case "++":
                         case "--":
-                            this.add({
-                                type: T.PostfixExpression,
-                                value: token.data,
-                                stream: [this.take()],
-                                endOnPop: true,
-                                pos: token.pos
-                            });
-                            
+                            if (symbol.type == T.Identifier) {
+                                this.add({
+                                    type: T.PostfixExpression,
+                                    value: token.data,
+                                    stream: [this.take()],
+                                    endOnPop: true,
+                                    pos: token.pos
+                                });
+                            }
+                            else {
+                                this.push(this.add({
+                                    type: T.UnaryExpression,
+                                    value: token.data
+                                }));
+                            }
                             break;
                             
                         case "||":
