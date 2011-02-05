@@ -134,6 +134,10 @@ Compiler.prototype = {
             case T.RegularExpressionLiteral:
                 push(symbol.value);
                 break;
+            case T.ArrayLiteral:
+                push("[");
+                separationChar = ",";
+                break;
             default:
             // push(symbol.value);
         
@@ -179,6 +183,9 @@ Compiler.prototype = {
                 if (separationChar == "[") {
                     push("]");
                 }
+                break;
+            case T.ArrayLiteral:
+                push("]");
                 break;
         }
         this.prevSymbol = symbol;
