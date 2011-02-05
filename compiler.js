@@ -102,6 +102,9 @@ Compiler.prototype = {
             case T.DefaultStatement:
                 push("default:");
                 break;
+            case T.MemberExpression:
+                separationChar = symbol.stream[1].type == T.Identifier ? "." : "[";
+                break;
             default:
             // push(symbol.value);
         
@@ -138,6 +141,11 @@ Compiler.prototype = {
                 break;
             case T.CaseClause:
                 push(":");
+                break;
+            case T.MemberExpression:
+                if (separationChar == "[") {
+                    push("]");
+                }
                 break;
         }
     },
