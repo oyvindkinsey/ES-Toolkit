@@ -4,7 +4,7 @@ function Compiler(ast){
 }
 
 Compiler.prototype = {
-    processSymbol: function renderSymbol(symbol){
+    processSymbol: function renderSymbol(symbol, parent){
         var T = AstGenerator.prototype.TYPES;
         var b = this.buffer, push = function(s){
             b.push(s);
@@ -34,7 +34,9 @@ Compiler.prototype = {
                 separationChar = ":";
                 break;
             case T.IterationStatement:
-                push(symbol.value);
+                if (symbol.value == "do") {
+                    push("do");
+                }
                 break;
             case T.Identifier:
                 push(symbol.value);
@@ -52,8 +54,6 @@ Compiler.prototype = {
                 separationChar = symbol.value;
                 break;
             case T.IfExpression:
-            case T.WhileExpression:
-            case T.ForExpression:
                 push("(");
                 separationChar = ";";
                 break;
@@ -111,6 +111,13 @@ Compiler.prototype = {
             case T.BooleanLiteral:
                 push(symbol.value);
                 break;
+            case T.WhileExpression:
+                push("while(");
+                break;
+            case T.ForExpression:
+                push("for(");
+                separationChar = ";";
+                break;
             default:
             // push(symbol.value);
         
@@ -119,7 +126,7 @@ Compiler.prototype = {
         
         if (symbol.stream) {
             for (var i = 0, len = symbol.stream.length; i < len; i++) {
-                this.processSymbol(symbol.stream[i]);
+                this.processSymbol(symbol.stream[i], symbol);
                 if (separationChar && i < len - 1) {
                     push(separationChar);
                 }
@@ -137,10 +144,14 @@ Compiler.prototype = {
             case T.GroupingExpression:
             case T.FormalParameterList:
             case T.IfExpression:
-            case T.WhileExpression:
             case T.ForExpression:
             case T.SwitchExpression:
                 push(")");
+                break;
+                
+            case T.WhileExpression:
+                // do/while requires to be terminated by ;
+                push(")" + (parent.value == "do" ? ";" : ""));
                 break;
             case T.PostfixExpression:
                 push(symbol.value);
@@ -158,7 +169,7 @@ Compiler.prototype = {
     compile: function(){
         // we don't need to process the top SourceElement
         this.ast.type = "";
-        this.processSymbol(this.ast);
+        this.processSymbol(this.ast, null);
         
         
         
