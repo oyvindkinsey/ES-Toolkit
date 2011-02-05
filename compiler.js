@@ -14,7 +14,9 @@ Compiler.prototype = {
         switch (symbol.type) {
             case T.SourceElement:
             case T.Block:
+            case T.ObjectLiteral:
                 push("{");
+                separationChar = ","
                 break;
             case T.StringLiteral:
                 push("\"" + symbol.value + "\"");
@@ -26,6 +28,9 @@ Compiler.prototype = {
             case T.GroupingExpression:
                 push("(");
                 separationChar = ",";
+                break;
+            case T.PropertyAssignment:
+                separationChar = ":";
                 break;
             case T.IterationStatement:
                 push(symbol.value);
@@ -94,6 +99,7 @@ Compiler.prototype = {
         
         //end symbol
         switch (symbol.type) {
+            case T.ObjectLiteral:
             case T.SourceElement:
             case T.Block:
                 push("}");
