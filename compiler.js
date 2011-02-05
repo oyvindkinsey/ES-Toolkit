@@ -62,8 +62,8 @@ Compiler.prototype = {
             case T.ElseStatement:
                 push("else");
                 break;
-            case T.CallExpression:
-                push(symbol.value + "(");
+            case T.Arguments:
+                push("(");
                 break;
             case T.Arguments:
                 separationChar = ",";
@@ -156,7 +156,7 @@ Compiler.prototype = {
             case T.Block:
                 push("}");
                 break;
-            case T.CallExpression:
+            case T.Arguments:
             case T.GroupingExpression:
             case T.FormalParameterList:
             case T.IfExpression:
