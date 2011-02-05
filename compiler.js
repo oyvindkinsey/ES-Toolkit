@@ -12,8 +12,12 @@ Compiler.prototype = {
         var separationChar = "";
         // begin symbol
         switch (symbol.type) {
-            case T.SourceElement:
+        
             case T.Block:
+                push("{");
+                separationChar = ";";
+                break;
+            case T.SourceElement:
             case T.ObjectLiteral:
                 push("{");
                 separationChar = ","
@@ -86,6 +90,18 @@ Compiler.prototype = {
                 //make sure we don't emit ++ or -- when we have an UnaryEpression in an AdditiveExpression with the same operator 
                 push((b[b.length - 1] == symbol.value ? " " : "") + symbol.value);
                 break;
+            case T.SwitchStatement:
+                push("switch");
+                break;
+            case T.SwitchExpression:
+                push("(");
+                break;
+            case T.CaseStatement:
+                push("case ");
+                break;
+            case T.DefaultStatement:
+                push("default:");
+                break;
             default:
             // push(symbol.value);
         
@@ -114,14 +130,20 @@ Compiler.prototype = {
             case T.IfExpression:
             case T.WhileExpression:
             case T.ForExpression:
+            case T.SwitchExpression:
                 push(")");
                 break;
             case T.PostfixExpression:
                 push(symbol.value);
                 break;
+            case T.CaseClause:
+                push(":");
+                break;
         }
     },
     compile: function(){
+        // we don't need to process the top SourceElement
+        this.ast.type = "";
         this.processSymbol(this.ast);
         
         
