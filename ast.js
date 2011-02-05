@@ -483,7 +483,7 @@ AstGenerator.prototype = {
                                 
                             case "-": //fall through	
                             case "+":
-                                if (head.type == T.AdditiveExpression || head.type == T.MultiplicativeExpression || head.type == T.AssignmentExpression || head.type == T.SourceElement) {
+                                if (head.type == T.AdditiveExpression || head.type == T.MultiplicativeExpression || head.type == T.AssignmentExpression || previousToken.type == TYPES.Semicolon) {
                                     symbol = this.push(this.add({
                                         type: T.UnaryExpression,
                                         value: token.data
