@@ -67,6 +67,7 @@ AstGenerator.prototype = {
         SwitchExpression: "SwitchExpression",
         SwitchBlock: "SwitchBlock",
         CaseStatement: "CaseStatement",
+        ThrowStatement: "ThrowStatement",
         ReturnStatement: "ReturnStatement",
         CaseClause: "CaseClause",
         IterationStatement: "IterationStatement",
@@ -343,7 +344,13 @@ AstGenerator.prototype = {
                                 }));
                                 
                                 break;
-                                
+                            case "throw":
+                                symbol = this.push(this.add({
+                                    type: T.ThrowStatement,
+                                    pos: token.pos,
+                                    endOnPop: true
+                                }));
+                                break;
                             case "this":
                                 symbol = this.add({
                                     type: T.Keyword,
@@ -727,7 +734,6 @@ AstGenerator.prototype = {
                                 if (this.head.type == T.Finally) {
                                     this.pop(2);
                                 }
-                                //popToAndIncluding(T.ObjectLiteral)
                                 break;
                                 
                             default:
@@ -739,7 +745,6 @@ AstGenerator.prototype = {
                         }
                         break;
                 }
-                // see if there are any symbols that should be closed
                 
                 previousToken = token;
             }
