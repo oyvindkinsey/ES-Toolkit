@@ -1,6 +1,7 @@
 function Compiler(ast){
     this.ast = ast;
     this.buffer = [];
+    this.prevSymbol = {};
 }
 
 Compiler.prototype = {
@@ -9,6 +10,7 @@ Compiler.prototype = {
         var b = this.buffer, push = function(s){
             b.push(s);
         };
+        var top;
         var separationChar = "";
         // begin symbol
         switch (symbol.type) {
@@ -39,7 +41,7 @@ Compiler.prototype = {
                 }
                 break;
             case T.Identifier:
-                push(symbol.value);
+                push((this.prevSymbol.type == T.Keyword && parent.type != T.MemberExpression ? " " : "") + symbol.value);
                 break;
             case T.VariableDeclaration:
                 push(symbol.value);
@@ -77,7 +79,10 @@ Compiler.prototype = {
                 push("if");
                 break;
             case T.Keyword:
-                push(" " + symbol.value + " ");
+                if (this.prevSymbol.type == T.Identifier || (this.prevSymbol.type == T.Keyword && parent.type != T.MemberExpression)) {
+                    push(" ");
+                }
+                push(symbol.value);
                 break;
             case T.VariableStatement:
                 push("var ");
@@ -103,6 +108,9 @@ Compiler.prototype = {
                 push("default:");
                 break;
             case T.MemberExpression:
+                if (this.prevSymbol.type == T.Keyword) {
+                    push(" ");
+                }
                 separationChar = symbol.stream[1].type == T.Identifier ? "." : "[";
                 break;
             case T.AssignmentExpression:
@@ -171,6 +179,7 @@ Compiler.prototype = {
                 }
                 break;
         }
+        this.prevSymbol = symbol;
     },
     compile: function(){
         // we don't need to process the top SourceElement
