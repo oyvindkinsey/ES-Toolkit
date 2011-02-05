@@ -534,9 +534,13 @@ AstGenerator.prototype = {
                                 break;
                                 
                             case "==":
+                            case "===":
+                            case "!=":
+                            case "!==":
                                 popWhile(T.UnaryExpression, T.AssignmentExpression, T.MultiplicativeExpression, T.AdditiveExpression, T.RelationalExpression);
                                 symbol = this.push(this.add({
                                     type: T.EqualityExpression,
+                                    value: token.data,
                                     stream: [this.take()],
                                     pos: token.pos,
                                     endOnPop: true
