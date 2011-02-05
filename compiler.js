@@ -108,6 +108,9 @@ Compiler.prototype = {
             case T.AssignmentExpression:
                 separationChar = "=";
                 break;
+            case T.BooleanLiteral:
+                push(symbol.value);
+                break;
             default:
             // push(symbol.value);
         
