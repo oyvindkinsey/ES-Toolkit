@@ -118,6 +118,9 @@ Compiler.prototype = {
                 push("for(");
                 separationChar = ";";
                 break;
+            case T.ShiftExpression:
+                separationChar = symbol.value;
+                break;
             default:
             // push(symbol.value);
         
