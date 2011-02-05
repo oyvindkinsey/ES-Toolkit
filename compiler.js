@@ -47,6 +47,9 @@ Compiler.prototype = {
             case T.IfStatement:
                 push("if");
                 break;
+            case T.Keyword:
+                push(" " + symbol.value + " ");
+                break;
             default:
                 push(symbol.value);
                 
