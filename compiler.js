@@ -131,7 +131,9 @@ Compiler.prototype = {
             case T.EqualityExpression:
                 separationChar = symbol.value;
                 break;
-                
+            case T.RegularExpressionLiteral:
+                push(symbol.value);
+                break;
             default:
             // push(symbol.value);
         
