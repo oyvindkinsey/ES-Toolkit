@@ -26,6 +26,7 @@ Compiler.prototype = {
                 break;
             case T.IfExpression:
             case T.WhileExpression:
+            case T.ForExpression:
                 push("(");
                 break;
             case T.ElseStatement:
@@ -49,6 +50,13 @@ Compiler.prototype = {
                 break;
             case T.Keyword:
                 push(" " + symbol.value + " ");
+                break;
+            case T.VariableStatement:
+                push("var ");
+                separationChar = ",";
+                break;
+            case T.Initializer:
+                push("=");
                 break;
             default:
                 push(symbol.value);
@@ -76,6 +84,7 @@ Compiler.prototype = {
             case T.FormalParameterList:
             case T.IfExpression:
             case T.WhileExpression:
+            case T.ForExpression:
                 push(")");
                 break;
         }
