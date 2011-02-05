@@ -53,7 +53,7 @@
                 container.appendChild(el);
                 var header = document.createElement("span");
                 
-                header.innerHTML = symbol.type + (name ? " : " + name : "") + (symbol.value ? " -> " + symbol.value : "");
+                header.innerHTML = el.title =  symbol.type + (name ? " : " + name : "") + (symbol.value ? " -> " + symbol.value : "");
                 el.appendChild(header);
                 
                 var s;
@@ -85,6 +85,7 @@
                 console.log("parsed into tokens in " + timeSpentParsing + "ms");
                 
                 var generator = new AstGenerator(stream);
+				window.geneator = generator;
                 var ast = generator.read();
                 var finishedAsting = new Date();
                 
