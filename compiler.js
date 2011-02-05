@@ -25,6 +25,7 @@ Compiler.prototype = {
                 separationChar = ",";
                 break;
             case T.IfExpression:
+            case T.WhileExpression:
                 push("(");
                 break;
             case T.ElseStatement:
@@ -71,6 +72,7 @@ Compiler.prototype = {
             case T.GroupingExpression:
             case T.FormalParameterList:
             case T.IfExpression:
+            case T.WhileExpression:
                 push(")");
                 break;
         }
