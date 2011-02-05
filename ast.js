@@ -191,7 +191,6 @@ AstGenerator.prototype = {
                 this.pop();
                 head = this.head;
             }
-            
             switch (token.type) {
             
                 case TYPES.Semicolon:
@@ -401,9 +400,6 @@ AstGenerator.prototype = {
                                 pos: token.pos
                             });
                     }
-                    if (head.type == T.MemberExpression) {
-                        this.pop(); //MemberExpression
-                    }
                     break;
                     
                 case TYPES.StringLiteral:
@@ -467,7 +463,6 @@ AstGenerator.prototype = {
                             }
                             else {
                                 if (head.type == T.MemberExpression) {
-                                    this.pop();
                                     this.pop();
                                 }
                                 // replace symbol with AssignmentExpression
@@ -774,7 +769,6 @@ AstGenerator.prototype = {
                     }
                     break;
             }
-            
             previousToken = token;
         }
         popWhileNot(T.SourceElement);
