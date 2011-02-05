@@ -112,7 +112,7 @@ AstGenerator.prototype = {
         var TYPES = Tokenizer.prototype.TYPES;
         var token, previousToken = {
             type: TYPES.Semicolon
-        }, head, symbol;
+        }, head, symbol = this.symbol;
         
         var ast = this;
         var T = this.TYPES;
