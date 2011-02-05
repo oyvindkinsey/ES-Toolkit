@@ -16,6 +16,9 @@ Compiler.prototype = {
             case T.Block:
                 push("{");
                 break;
+            case T.StringLiteral:
+                push("\"" + symbol.value + "\"");
+                break;
             case T.AdditiveExpression:
             case T.MultiplicativeExpression:
                 break;
