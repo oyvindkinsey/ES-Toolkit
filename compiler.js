@@ -45,6 +45,8 @@ Compiler.prototype = {
                 push(symbol.value);
                 break;
             case T.RelationalExpression:
+            case T.AdditiveExpression:
+            case T.MultiplicativeExpression:
                 separationChar = symbol.value;
                 break;
             case T.IfExpression:
