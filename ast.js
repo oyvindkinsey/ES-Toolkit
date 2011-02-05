@@ -82,6 +82,7 @@ AstGenerator.prototype = {
         IfExpression: "IfExpression",
         ElseStatement: "ElseStatement",
         ExceptionIdentifier: "ExceptionIdentifier",
+        StatementTerminator: "StatementTerminator",
         ElseBlock: "ElseBlock",
         UnaryExpression: "UnaryExpression",
         EqualityExpression: "EqualityExpression",
@@ -193,6 +194,11 @@ AstGenerator.prototype = {
                 
                     case TYPES.Semicolon:
                         popWhileNot(T.SourceElement, T.Block, T.CaseBlock, T.ForExpression);
+                        symbol = this.add({
+                            type: T.StatementTerminator,
+                            value: token.data,
+                            pos: token.pos
+                        });
                         break;
                     case TYPES.Keyword:
                         
@@ -205,7 +211,7 @@ AstGenerator.prototype = {
                                 // move through the identifier and the formal parameter list
                                 token = this.readNext();
                                 if (token.type == TYPES.Identifier) {
-                                    symbol.name = token.data;
+                                    symbol.value = token.data;
                                     token = this.readNext();
                                 }
                                 this.push(this.add({
@@ -217,7 +223,7 @@ AstGenerator.prototype = {
                                     if (token.type == TYPES.Identifier) {
                                         this.add({
                                             type: T.Identifier,
-                                            name: token.data,
+                                            value: token.data,
                                             pos: token.pos
                                         });
                                     }
@@ -264,7 +270,7 @@ AstGenerator.prototype = {
                             case "for":
                                 symbol = this.push(this.add({
                                     type: T.IterationStatement,
-                                    name: token.data,
+                                    value: token.data,
                                     endOnPop: true,
                                     pos: token.pos
                                 }));
@@ -272,7 +278,7 @@ AstGenerator.prototype = {
                             case "do":
                                 symbol = this.push(this.add({
                                     type: T.IterationStatement,
-                                    name: token.data,
+                                    value: token.data,
                                     pos: token.pos
                                 }));
                                 break;
@@ -285,7 +291,7 @@ AstGenerator.prototype = {
                                 
                                     symbol = this.push(this.add({
                                         type: T.IterationStatement,
-                                        name: token.data,
+                                        value: token.data,
                                         endOnPop: true,
                                         pos: token.pos
                                     }));
@@ -354,7 +360,7 @@ AstGenerator.prototype = {
                             case "this":
                                 symbol = this.add({
                                     type: T.Keyword,
-                                    name: token.data,
+                                    value: token.data,
                                     pos: token.pos
                                 });
                                 break;
@@ -367,7 +373,7 @@ AstGenerator.prototype = {
                             default:
                                 symbol = this.add({
                                     type: T.Keyword,
-                                    name: token.data,
+                                    value: token.data,
                                     pos: token.pos
                                 });
                         }
@@ -378,7 +384,7 @@ AstGenerator.prototype = {
                             case T.VariableStatement:
                                 symbol = this.push(this.add({
                                     type: T.VariableDeclaration,
-                                    name: token.data,
+                                    value: token.data,
                                     pos: token.pos,
                                     endOnPop: true
                                 }));
@@ -387,7 +393,7 @@ AstGenerator.prototype = {
                             case T.ObjectLiteral:
                                 symbol = this.push(this.add({
                                     type: T.PropertyAssignment,
-                                    name: token.data,
+                                    value: token.data,
                                     pos: token.pos
                                 }));
                                 break
@@ -395,7 +401,7 @@ AstGenerator.prototype = {
                                 
                                 symbol = this.add({
                                     type: T.Identifier,
-                                    name: token.data,
+                                    value: token.data,
                                     pos: token.pos
                                 });
                         }
@@ -408,7 +414,7 @@ AstGenerator.prototype = {
                         if (head.type == T.ObjectLiteral) {
                             symbol = this.push(this.add({
                                 type: T.PropertyAssignment,
-                                name: token.value,
+                                value: token.value,
                                 pos: token.pos
                             }));
                         }
@@ -488,7 +494,10 @@ AstGenerator.prototype = {
                                     pos: token.pos,
                                     endOnPop: true
                                 }));
-                                
+                                this.add({
+                                    type: T.Punctuator,
+                                    value: token.data
+                                });
                                 break;
                                 
                             case "++":
@@ -567,6 +576,7 @@ AstGenerator.prototype = {
                                 break;
                                 
                             case ",":
+                                
                                 popWhileNot(T.VariableStatement, T.Arguments, T.GroupingExpression, T.ArrayLiteral, T.ObjectLiteral);
                                 break;
                                 
@@ -579,8 +589,8 @@ AstGenerator.prototype = {
                                     
                                     symbol = this.push(this.add({
                                         type: T.CallExpression,
-                                        stream: [this.take()],
-                                        pos: token.pos
+                                        pos: token.pos,
+                                        value: this.take().value
                                     }));
                                     this.push(this.add({
                                         type: T.Arguments,
@@ -604,7 +614,7 @@ AstGenerator.prototype = {
                                                 }));
                                                 break;
                                             case T.IterationStatement:
-                                                switch (head.name) {
+                                                switch (head.value) {
                                                     case "while":
                                                         symbol = this.push(this.add({
                                                             type: T.WhileExpression,

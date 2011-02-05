@@ -8,7 +8,7 @@
                 float: left;
             }
             
-            #output, #txtSrc {
+            #output, #txtSrc, #txtCompiled {
                 width: 98%;
             }
             
@@ -18,9 +18,8 @@
                 border-top: 1px solid grey;
                 border-bottom: 1px solid grey;
             }
-			
             
-            #txtSrc {
+            #txtSrc, #txtCompiled {
                 height: 300px;
             }
             
@@ -37,6 +36,8 @@
         </script>
         <script type="text/javascript" src="ast.js">
         </script>
+        <script type="text/javascript" src="compiler.js">
+        </script>
         <script type="text/javascript">
             var supportsLocalStorage = false;
             try {
@@ -45,15 +46,15 @@
             catch (e) {
             }
             
-            var output, input;
+            var output, input, txtCompiled;
             
-            function renderSymbol(symbol, name, container){
+            function renderSymbol(symbol, container){
                 var el = document.createElement("div");
                 el.className = "symbol";
                 container.appendChild(el);
                 var header = document.createElement("span");
                 
-                header.innerHTML = el.title =  symbol.type + (name ? " : " + name : "") + (symbol.value ? " -> " + symbol.value : "");
+                header.innerHTML = el.title = symbol.type + (symbol.value ? " -> " + symbol.value : "");
                 el.appendChild(header);
                 
                 var s;
@@ -65,7 +66,7 @@
                     for (var i = 0, len = symbol.stream.length; i < len; i++) {
                     
                         s = symbol.stream[i];
-                        renderSymbol(s, s.name, streamEl);
+                        renderSymbol(s, streamEl);
                     }
                 }
             }
@@ -85,7 +86,7 @@
                 console.log("parsed into tokens in " + timeSpentParsing + "ms");
                 
                 var generator = new AstGenerator(stream);
-				window.geneator = generator;
+                window.geneator = generator;
                 var ast = generator.read();
                 var finishedAsting = new Date();
                 
@@ -101,7 +102,9 @@
                 tokenizer.length +
                 "<br/><br/>";
                 output.appendChild(el);
-                renderSymbol(ast, "Program", output);
+                renderSymbol(ast, output);
+                var compiler = new Compiler(ast);
+                txtCompiled.value = compiler.compile();
             }
         </script>
     </head>
@@ -114,6 +117,8 @@
         <button id="btnParse" onclick="parseSource();">
             Parse
         </button>
+        <textarea id="txtCompiled">
+        </textarea>
     </div>
     <div id="col2">
         <div id="output">
@@ -122,6 +127,7 @@
     <script type="text/javascript">
         output = document.getElementById("output");
         input = document.getElementById("txtSrc");
+        txtCompiled = document.getElementById("txtCompiled");
         if (supportsLocalStorage) {
             var source = localStorage.getItem("source");
             if (source) {
