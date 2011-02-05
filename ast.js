@@ -730,7 +730,7 @@ AstGenerator.prototype = {
                                 
                             case "}":
                                 if (this.head.type == T.PropertyAssignment) {
-                                    this.pop(2);
+                                    this.pop();
                                     
                                 }
                                 if (this.head.type == T.CaseBlock) {
