@@ -18,7 +18,6 @@ function AstGenerator(stream){
 
 AstGenerator.prototype = {
     push: function(symbol){
-        console.log(symbol.type)
         this.stack.push(symbol);
         this.head = symbol;
         return symbol;
@@ -61,6 +60,9 @@ AstGenerator.prototype = {
         AssignmentExpression: "AssignmentExpression",
         FormalParameterList: "FormalParameterList",
         SwitchStatement: "SwitchStatement",
+        TryStatement: "TryStatement",
+        Catch: "Catch",
+        Finally: "Finally",
         Arguments: "Arguments",
         SwitchExpression: "SwitchExpression",
         SwitchBlock: "SwitchBlock",
@@ -78,6 +80,7 @@ AstGenerator.prototype = {
         PostfixExpression: "PostfixExpression",
         IfExpression: "IfExpression",
         ElseStatement: "ElseStatement",
+        ExceptionIdentifier: "ExceptionIdentifier",
         ElseBlock: "ElseBlock",
         UnaryExpression: "UnaryExpression",
         EqualityExpression: "EqualityExpression",
@@ -153,7 +156,6 @@ AstGenerator.prototype = {
         
         try {
             while (this.pos < this.length) {
-                this.latToken = token;
                 this.token = token = this.readNext();
                 head = this.head;
                 
@@ -164,7 +166,6 @@ AstGenerator.prototype = {
                     //ignore the LineTerminator unless we need to do ASI
                     var asi = false;
                     if (previousToken.type != TYPES.Semicolon) {
-                        console.log(previousToken.type)
                         // after comments
                         if (previousToken.type == TYPES.CommentSingleLine || previousToken.type == TYPES.CommentMultiLine) {
                             //asi = true;
@@ -179,6 +180,12 @@ AstGenerator.prototype = {
                     else {
                         continue;
                     }
+                }
+                
+                //this is such a hack!
+                if (head.type == T.TryStatement && token.data != "{" && token.data != "finally" && token.data != "catch") {
+                    this.pop();
+                    head = this.head;
                 }
                 
                 switch (token.type) {
@@ -223,6 +230,26 @@ AstGenerator.prototype = {
                                     type: T.VariableStatement,
                                     pos: token.pos,
                                     endOnPop: true
+                                }));
+                                break;
+                                
+                            case "try":
+                                symbol = this.push(this.add({
+                                    type: T.TryStatement,
+                                    pos: token.pos
+                                }));
+                                break;
+                            case "catch":
+                                symbol = this.push(this.add({
+                                    type: T.Catch,
+                                    pos: token.pos
+                                }));
+                                break;
+                                
+                            case "finally":
+                                symbol = this.push(this.add({
+                                    type: T.Finally,
+                                    pos: token.pos
                                 }));
                                 break;
                                 
@@ -563,6 +590,12 @@ AstGenerator.prototype = {
                                     }
                                     else {
                                         switch (head.type) {
+                                            case T.Catch:
+                                                symbol = this.push(this.add({
+                                                    type: T.ExceptionIdentifier,
+                                                    pos: token.pos
+                                                }));
+                                                break;
                                             case T.IterationStatement:
                                                 switch (head.name) {
                                                     case "while":
@@ -612,7 +645,7 @@ AstGenerator.prototype = {
                                 break;
                                 
                             case ")":
-                                popToAndIncluding(T.CallExpression, T.GroupingExpression, T.IfExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
+                                popToAndIncluding(T.ExceptionIdentifier, T.CallExpression, T.GroupingExpression, T.IfExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
                                 break;
                                 
                             case "[":
@@ -647,6 +680,8 @@ AstGenerator.prototype = {
                                         case T.SwitchStatement:
                                         case T.IterationStatement:
                                         case T.IfExpression:
+                                        case T.Catch:
+                                        case T.Finally:
                                         case T.CallExpression:
                                         case T.IfStatement: //IfExpression
                                             symbol = this.push(this.add({
@@ -686,6 +721,12 @@ AstGenerator.prototype = {
                                 }
                                 this.pop();
                                 popIfRequired();
+                                if (this.head.type == T.Catch) {
+                                    this.pop();
+                                }
+                                if (this.head.type == T.Finally) {
+                                    this.pop(2);
+                                }
                                 //popToAndIncluding(T.ObjectLiteral)
                                 break;
                                 
