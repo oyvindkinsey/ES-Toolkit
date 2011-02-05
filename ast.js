@@ -162,6 +162,7 @@ AstGenerator.prototype = {
             this.token = token = this.readNext();
             head = this.head;
             
+            
             // todo: implement ASI
             if (token.type == TYPES.LineTerminator) {
                 this.lineNumber++;
@@ -598,7 +599,7 @@ AstGenerator.prototype = {
                                 symbol = this.push(this.add({
                                     type: T.CallExpression,
                                     pos: token.pos,
-                                    value: this.take().value
+                                    stream: [this.take()]
                                 }));
                                 this.push(this.add({
                                     type: T.Arguments,
