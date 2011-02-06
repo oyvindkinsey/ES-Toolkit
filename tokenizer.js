@@ -32,7 +32,8 @@ Tokenizer.prototype = {
      * These are all treated as keywords and ends up as Keyword tokens
      */
     KEYWORDS: (function(){
-        var punctuators = "break case catch continue default delete do else finally for function if in instanceof new return switch this throw try typeof var void while with".split(" ");
+        // do not add 'this' here
+        var punctuators = "break case catch continue default delete do else finally for function if in instanceof new return switch throw try typeof var void while with".split(" ");
         var map = {};
         for (var i = 0, len = punctuators.length; i < len; i++) {
             map[punctuators[i]] = 1;
