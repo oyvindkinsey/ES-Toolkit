@@ -83,6 +83,7 @@ AstGenerator.prototype = {
         FalsePart: "FalsePart",
         ForStatement: "ForStatement",
         IfStatement: "IfStatement",
+        BreakStatement: "BreakStatement",
         PostfixExpression: "PostfixExpression",
         BooleanExpression: "BooleanExpression",
         ExceptionIdentifier: "ExceptionIdentifier",
@@ -301,7 +302,12 @@ AstGenerator.prototype = {
                                 }));
                             }
                             break;
-                            
+                        case "break":
+                            symbol = this.push(this.add({
+                                type: T.BreakStatement,
+                                pos: token.pos
+                            }));
+                            break;
                         case "case":
                             popWhileNot(T.Block);
                             symbol = this.push(this.add({
