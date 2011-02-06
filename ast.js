@@ -210,7 +210,7 @@ AstGenerator.prototype = {
                     switch (token.data) {
                         case "function":
                             symbol = this.push(this.add({
-                                type: (previousToken.type == TYPES.Semicolon) ? T.FunctionDeclaration : T.FunctionExpression,
+                                type: (head.type == T.SourceElement) ? T.FunctionDeclaration : T.FunctionExpression,
                                 pos: token.pos
                             }));
                             // move through the identifier and the formal parameter list
@@ -601,17 +601,15 @@ AstGenerator.prototype = {
                             break;
                             
                         case ":":
-                            switch (head.type) {
-                                case T.CaseClause:
-                                    this.pop();
+                            popWhileNot(T.CaseStatement, T.TernaryExpression, T.ObjectLiteral, T.DefaultStatement);
+                            switch (this.head.type) {
+                                case T.CaseStatement:
                                     symbol = this.push(this.add({
                                         type: T.CaseBlock,
                                         pos: token.pos
                                     }));
                                     break;
                                 case T.TruePart:
-                                    popIfRequired();
-                                    this.pop();
                                     symbol = this.push(this.add({
                                         type: T.FalsePart,
                                         pos: token.pos
@@ -796,6 +794,9 @@ AstGenerator.prototype = {
                             if (this.head.type == T.CaseBlock) {
                                 this.pop(2);
                             }
+                            if (this.head.type == T.SourceElement) {
+                                this.pop();
+                            }
                             // pop the current symbol
                             this.pop();
                             // check if we need to pop further
@@ -809,16 +810,13 @@ AstGenerator.prototype = {
                                         this.pop();
                                     }
                                     break;
+                                case T.Finally:
                                 case T.FalsePart:
                                     // pop out of the IfStatement
                                     this.pop(2);
                                     break;
-                                //fallthrough
                                 case T.Catch:
                                     this.pop();
-                                    break;
-                                case T.Finally:
-                                    this.pop(2);
                                     break;
                             }
                             break;
