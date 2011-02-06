@@ -394,7 +394,12 @@ AstGenerator.prototype = {
                                 type: T.PropertyAssignment,
                                 pos: token.pos
                             }));
-                        //fall through
+                            symbol = this.add({
+                                type: T.StringLiteral,
+                                value: token.data,
+                                pos: token.pos
+                            });
+                            break;
                         default:
                             
                             symbol = this.add({
@@ -599,7 +604,7 @@ AstGenerator.prototype = {
                                     }));
                                     break;
                                 case T.TruePart:
-                                   	popIfRequired();
+                                    popIfRequired();
                                     this.pop();
                                     symbol = this.push(this.add({
                                         type: T.FalsePart,
@@ -750,7 +755,12 @@ AstGenerator.prototype = {
                                         pos: token.pos
                                     }));
                                     break;
-                                    
+                                case T.ReturnStatement:
+                                    symbol = this.push(this.add({
+                                        type: T.ObjectLiteral,
+                                        pos: token.pos
+                                    }));
+                                    break;
                                 default:
                                     
                                     switch (previousToken.type) {
