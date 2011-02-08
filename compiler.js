@@ -1,7 +1,9 @@
 function Compiler(ast){
     this.ast = ast;
     this.buffer = [];
-    this.prevSymbol = {};
+    this.prevSymbol = {
+        type: AstGenerator.prototype.TYPES.StatementTerminator
+    };
 }
 
 Compiler.prototype = {
@@ -12,20 +14,27 @@ Compiler.prototype = {
         };
         var top;
         var separationChar = "";
+        
         // begin symbol
         switch (symbol.type) {
         
             case T.Block:
                 push("{");
-                separationChar = ";";
                 break;
             case T.SourceElement:
                 push("{");
-                separationChar = ";";
                 break;
             case T.ObjectLiteral:
                 push("{");
-                separationChar = ","
+                separationChar = ",";
+                break;
+            case T.PropertyName:
+                if (!(symbol.value in Tokenizer.prototype.KEYWORDS) && symbol.value != "this") {
+                    push(symbol.value);
+                }
+                else {
+                    push("\"" + symbol.value + "\"");
+                }
                 break;
             case T.StringLiteral:
                 push("\"" + symbol.value + "\"");
@@ -44,7 +53,10 @@ Compiler.prototype = {
                 }
                 break;
             case T.Identifier:
-                push((this.prevSymbol.type == T.Keyword && parent.type != T.MemberExpression ? " " : "") + symbol.value);
+                if (this.prevSymbol.type == T.Keyword) {
+                    push(" ");
+                }
+                push(symbol.value);
                 break;
             case T.VariableDeclaration:
                 push(symbol.value);
@@ -60,13 +72,18 @@ Compiler.prototype = {
                 break;
             case T.IfExpression:
                 push("(");
-                separationChar = ";";
                 break;
-            case T.ElseStatement:
-                push("else");
+            case T.FalsePart:
+                if (parent.type == T.IfStatement) {
+                    push("else");
+                }
+                else {
+                    push(":");
+                }
                 break;
             case T.Arguments:
                 push("(");
+                separationChar = ",";
                 break;
             case T.Arguments:
                 separationChar = ",";
@@ -82,7 +99,7 @@ Compiler.prototype = {
                 push("if");
                 break;
             case T.Keyword:
-                if (parent.type != T.MemberExpression && (this.prevSymbol.type == T.Identifier || this.prevSymbol.type == T.Keyword)) {
+                if (this.prevSymbol.type == T.Identifier || this.prevSymbol.type == T.DotExpression) {
                     push(" ");
                 }
                 push(symbol.value);
@@ -117,7 +134,7 @@ Compiler.prototype = {
                 separationChar = ".";
                 break;
             case T.AssignmentExpression:
-                separationChar = "=";
+                separationChar = symbol.value;
                 break;
             case T.BooleanLiteral:
                 push(symbol.value);
@@ -127,7 +144,6 @@ Compiler.prototype = {
                 break;
             case T.ForExpression:
                 push("for(");
-                separationChar = ";";
                 break;
             case T.ShiftExpression:
             case T.LogicalExpression:
@@ -140,6 +156,28 @@ Compiler.prototype = {
             case T.ArrayLiteral:
                 push("[");
                 separationChar = ",";
+                break;
+            case T.BooleanExpression:
+                if (parent.type == T.IfStatement) {
+                    push("(");
+                }
+                break;
+            case T.TruePart:
+                if (parent.type == T.TernaryExpression) {
+                    push("?");
+                }
+                break;
+            case T.FalsePart:
+                push(parent.type == T.IfStatement ? "else" : ":");
+                break;
+            case T.ReturnStatement:
+                push("return ");
+                break;
+            case T.BreakStatement:
+                push("break");
+                break;
+            case T.InExpression:
+                separationChar = " in ";
                 break;
             default:
             // push(symbol.value);
@@ -172,9 +210,14 @@ Compiler.prototype = {
                 push(")");
                 break;
                 
+            case T.BooleanExpression:
+                if (parent.type == T.IfStatement) {
+                    push(")");
+                }
+                break;
             case T.WhileExpression:
                 // do/while requires to be terminated by ;
-                push(")" + (parent.value == "do" ? ";" : ""));
+                push(")");
                 break;
             case T.PostfixExpression:
                 push(symbol.value);
@@ -188,21 +231,14 @@ Compiler.prototype = {
             case T.ArrayLiteral:
                 push("]");
                 break;
-            case T.CallExpression:
-                if (parent.type == "" || parent.type == T.SourceElement) {
-                    push(";");
-                    break;
-                }
         }
         this.prevSymbol = symbol;
     },
     compile: function(){
-        // we don't need to process the top SourceElement
-        this.ast.type = "";
-        this.processSymbol(this.ast, null);
+        this.processSymbol(this.ast, {});
         
         
         
-        return this.buffer.join("");
+        return this.buffer.slice(1, -1).join("");
     }
 };

@@ -92,19 +92,25 @@
                 
                 var timeSpentASTing = finishedAsting.valueOf() - finishedParsing.valueOf();
                 
+                var compiler = new Compiler(ast);
+                txtCompiled.value = compiler.compile();
+                
+                var timeSpentCompiling = new Date().valueOf() - finishedAsting.valueOf();
+                
                 console.log("generated AST in " + timeSpentASTing + "ms");
                 var el = document.createElement("div");
                 el.innerHTML = "parsing: " + timeSpentParsing + "ms<br/>" +
                 "generating AST: " +
                 timeSpentASTing +
                 "ms<br/>" +
+                "compiling javascript: " +
+                timeSpentCompiling +
+                "ms<br/>" +
                 "source length: " +
                 tokenizer.length +
                 "<br/><br/>";
                 output.appendChild(el);
                 renderSymbol(ast, output);
-                var compiler = new Compiler(ast);
-                txtCompiled.value = compiler.compile();
             }
         </script>
     </head>
