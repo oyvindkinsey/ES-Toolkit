@@ -601,7 +601,7 @@ AstGenerator.prototype = {
                             break;
                             
                         case ":":
-                            popWhileNot(T.CaseStatement, T.TernaryExpression, T.ObjectLiteral, T.DefaultStatement);
+                            popWhileNot(T.CaseStatement, T.TernaryExpression, T.ObjectLiteral, T.DefaultStatement, T.PropertyAssignment);
                             switch (this.head.type) {
                                 case T.CaseStatement:
                                     symbol = this.push(this.add({
@@ -786,14 +786,9 @@ AstGenerator.prototype = {
                             break;
                             
                         case "}":
+                            popWhileNot(T.SourceElement, T.Block, T.ObjectLiteral);
                             // if we are inside some construct, lets pop up to the main block                    
-                            if (this.head.type == T.PropertyAssignment) {
-                                this.pop();
-                                
-                            }
-                            if (this.head.type == T.CaseBlock) {
-                                this.pop(2);
-                            }
+                            
                             if (this.head.type == T.SourceElement) {
                                 this.pop();
                             }
@@ -844,7 +839,8 @@ AstGenerator.prototype = {
         popWhileNot(T.SourceElement);
         console.log(this.head);
         if (this.stack.length > 2) {
-            throw new Error("Non-terminated " + this.stack[this.stack.length - 1].type);
+            //            throw new Error("Non-terminated " + this.stack[this.stack.length - 1].type);
+            console.log("Non-terminated " + this.stack[this.stack.length - 1].type);
         }
         console.log(this.symbol.stream)
         return this.symbol;
