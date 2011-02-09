@@ -38,7 +38,7 @@ AstGenerator.prototype = {
         return symbol;
     },
     take: function(){
-        if (!this.head.stream || this.head.stream.length == 0) {
+        if (!this.head.stream || this.head.stream.length === 0) {
             throw new Error("Cannot pop empty stream");
         }
         return this.head.stream.pop();
@@ -522,7 +522,7 @@ AstGenerator.prototype = {
                                 // replace symbol with AssignmentExpression
                                 symbol = this.push(this.add({
                                     type: T.AssignmentExpression,
-									value: token.data,
+                                    value: token.data,
                                     stream: [this.take()],
                                     pos: token.pos
                                 }));

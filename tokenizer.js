@@ -57,7 +57,7 @@ Tokenizer.prototype = {
      */
     peekWord: function(){
         var pos = this.pos;
-        while (/\w/.test(this.peek())) {
+        while (/[\w$]/.test(this.peek())) {
             this.pos++;
         }
         var nextPos = this.pos;
@@ -248,9 +248,7 @@ Tokenizer.prototype = {
                 }
                 
                 // having two numbers and two regular expressions afte another are both invalid and weird
-                if (this.lastToken.type != this.TYPES.NumericLiteral &&
-                this.lastToken.type != this.TYPES.RegularExpressionLiteral &&
-                this.lastToken.type != this.TYPES.Identifier) {
+                if (!(/[\)\]\w$\"\']/.test(this.lastToken.data))) {
                     this.newToken(this.TYPES.RegularExpressionLiteral, chr);
                     continue;
                 }

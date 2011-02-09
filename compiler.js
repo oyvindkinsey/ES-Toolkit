@@ -1,3 +1,4 @@
+/*globals Tokenizer, AstGenerator */
 function Compiler(ast){
     this.ast = ast;
     this.buffer = [];
