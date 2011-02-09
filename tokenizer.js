@@ -202,13 +202,8 @@ Tokenizer.prototype = {
     parse: function(){
         var chr, nextChr;
         
-        // to avoid uncrontrolled loops while debuggin
-        var max = 100000, i = 0;
         while ((chr = this.peek())) {
-            if (++i == max) {
-                throw new Error("Uncontrolled loop");
-            }
-            
+        
             if (chr == "\n") {
                 this.line++;
                 this.col = 0;
