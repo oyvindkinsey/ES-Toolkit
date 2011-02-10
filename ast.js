@@ -135,16 +135,6 @@ AstGenerator.prototype = {
         var ast = this;
         var T = this.TYPES;
         
-        function popWhile(){
-            var args = Array.prototype.slice.call(arguments), l = args.length, types = {};
-            while (l--) {
-                types[args[l]] = 1;
-            }
-            while (ast.head.type in types) {
-                ast.pop();
-            }
-        }
-        
         function popToAndIncluding(){
             var args = Array.prototype.slice.call(arguments), l = args.length, types = {};
             while (l--) {
@@ -167,12 +157,12 @@ AstGenerator.prototype = {
             }
         }
         
-        function popIfRequired(){
-            while (ast.head.endOnPop) {
+        // check if we have fulfilled the current symbols expectancy
+        function popFulfilled(){
+            while (ast.head.length && ast.head.stream && ast.head.length == ast.head.stream.length) {
                 ast.pop();
             }
         }
-        
         //try {
         while (this.pos < this.length) {
             this.token = token = this.readNext();
@@ -248,8 +238,7 @@ AstGenerator.prototype = {
                         case "var":
                             symbol = this.push(this.add({
                                 type: T.VariableStatement,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                             
@@ -276,7 +265,7 @@ AstGenerator.prototype = {
                         case "switch":
                             symbol = this.push(this.add({
                                 type: T.SwitchStatement,
-                                endOnPop: true,
+                                length: 2,
                                 pos: token.pos
                             }));
                             break;
@@ -284,7 +273,6 @@ AstGenerator.prototype = {
                             symbol = this.push(this.add({
                                 type: T.IterationStatement,
                                 value: token.data,
-                                endOnPop: true,
                                 pos: token.pos
                             }));
                             break;
@@ -305,13 +293,12 @@ AstGenerator.prototype = {
                                 symbol = this.push(this.add({
                                     type: T.IterationStatement,
                                     value: token.data,
-                                    endOnPop: true,
                                     pos: token.pos
                                 }));
                             }
                             break;
                         case "break":
-                            popWhileNot(T.Block, T.SourceElement, T.CaseBlock);
+                            popFulfilled();
                             symbol = this.push(this.add({
                                 type: T.BreakStatement,
                                 pos: token.pos
@@ -322,19 +309,20 @@ AstGenerator.prototype = {
                             popWhileNot(T.Block);
                             symbol = this.push(this.add({
                                 type: T.CaseStatement,
-                                pos: token.pos
+                                pos: token.pos,
+                                length: 2
                             }));
                             
                             symbol = this.push(this.add({
                                 type: T.CaseClause,
-                                pos: token.pos
+                                pos: token.pos,
+                                length: 1
                             }));
                             
                             break;
                         case "if":
                             symbol = this.push(this.add({
                                 type: T.IfStatement,
-                                endOnPop: true,
                                 pos: token.pos
                             }));
                             break;
@@ -350,16 +338,20 @@ AstGenerator.prototype = {
                             break;
                             
                         case "in":
-                            popIfRequired();
+                            popFulfilled();
+                            if (this.head.type == T.VariableDeclaration) {
+                                this.pop(2);
+                            }
                             symbol = this.push(this.add({
                                 type: T.InExpression,
                                 stream: [this.take()],
+                                length: 2,
                                 pos: token.pos
                             }));
                             break;
                             
                         case "default":
-                            popWhileNot(T.Block);
+                            popFulfilled();
                             symbol = this.push(this.add({
                                 type: T.DefaultStatement,
                                 pos: token.pos
@@ -374,8 +366,7 @@ AstGenerator.prototype = {
                         case "throw":
                             symbol = this.push(this.add({
                                 type: T.ThrowStatement,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                         case "this":
@@ -406,8 +397,7 @@ AstGenerator.prototype = {
                             symbol = this.push(this.add({
                                 type: T.VariableDeclaration,
                                 value: token.data,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                             
@@ -423,7 +413,7 @@ AstGenerator.prototype = {
                             });
                             break;
                         default:
-                            
+                            popFulfilled();
                             symbol = this.add({
                                 type: T.Identifier,
                                 value: token.data,
@@ -486,7 +476,8 @@ AstGenerator.prototype = {
                                 type: T.TernaryExpression,
                                 stream: [{
                                     type: T.BooleanExpression,
-                                    stream: [this.take()]
+                                    stream: [this.take()],
+                                    length: 1
                                 }],
                                 pos: token.pos
                             }));
@@ -524,6 +515,7 @@ AstGenerator.prototype = {
                                     type: T.AssignmentExpression,
                                     value: token.data,
                                     stream: [this.take()],
+                                    length: 2,
                                     pos: token.pos
                                 }));
                             }
@@ -531,7 +523,8 @@ AstGenerator.prototype = {
                             
                         case "-": //fall through	
                         case "+":
-                            if (head.type == T.AdditiveExpression || head.type == T.MultiplicativeExpression || head.type == T.AssignmentExpression || previousToken.type == TYPES.Semicolon) {
+                            popFulfilled();
+                            if (this.head.type == T.AdditiveExpression || this.head.type == T.MultiplicativeExpression || this.head.type == T.AssignmentExpression || previousToken.type == TYPES.Semicolon) {
                                 symbol = this.push(this.add({
                                     type: T.UnaryExpression,
                                     value: token.data
@@ -541,9 +534,9 @@ AstGenerator.prototype = {
                                 symbol = this.push(this.add({
                                     type: T.AdditiveExpression,
                                     stream: [this.take()],
+                                    length: 2,
                                     value: token.data,
-                                    pos: token.pos,
-                                    endOnPop: true
+                                    pos: token.pos
                                 }));
                             }
                             break;
@@ -555,7 +548,6 @@ AstGenerator.prototype = {
                                     type: T.PostfixExpression,
                                     value: token.data,
                                     stream: [this.take()],
-                                    endOnPop: true,
                                     pos: token.pos
                                 });
                             }
@@ -569,13 +561,12 @@ AstGenerator.prototype = {
                             
                         case "||":
                         case "&&":
-                            popWhile(T.UnaryExpression, T.DotExpression, T.MemberExpression, T.AssignmentExpression, T.MultiplicativeExpression, T.AdditiveExpression, T.RelationalExpression);
+                            popFulfilled();
                             symbol = this.push(this.add({
                                 type: T.LogicalExpression,
                                 stream: [this.take()],
                                 value: token.data,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                             
@@ -587,8 +578,7 @@ AstGenerator.prototype = {
                                 type: T.RelationalExpression,
                                 stream: [this.take()],
                                 value: token.data,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                             
@@ -601,8 +591,8 @@ AstGenerator.prototype = {
                                 type: T.EqualityExpression,
                                 value: token.data,
                                 stream: [this.take()],
-                                pos: token.pos,
-                                endOnPop: true
+                                length: 2,
+                                pos: token.pos
                             }));
                             break;
                             
@@ -612,8 +602,8 @@ AstGenerator.prototype = {
                                 type: T.MultiplicativeExpression,
                                 value: token.data,
                                 stream: [this.take()],
-                                pos: token.pos,
-                                endOnPop: true
+                                length: 2,
+                                pos: token.pos
                             }));
                             break;
                         case ".":
@@ -622,7 +612,7 @@ AstGenerator.prototype = {
                                 value: token.data,
                                 stream: [this.take()],
                                 pos: token.pos,
-                                endOnPop: true
+                                length: 2
                             }));
                             break;
                             
@@ -646,7 +636,6 @@ AstGenerator.prototype = {
                             break;
                             
                         case ",":
-                            
                             popWhileNot(T.VariableStatement, T.Arguments, T.GroupingExpression, T.ArrayLiteral, T.ObjectLiteral);
                             break;
                             
@@ -664,8 +653,7 @@ AstGenerator.prototype = {
                                 }));
                                 this.push(this.add({
                                     type: T.Arguments,
-                                    pos: token.pos,
-                                    endOnPop: true
+                                    pos: token.pos
                                 }));
                             }
                             else {
@@ -732,7 +720,8 @@ AstGenerator.prototype = {
                             break;
                             
                         case ")":
-                            popToAndIncluding(T.ExceptionIdentifier, T.CallExpression, T.GroupingExpression, T.BooleanExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
+                            popToAndIncluding(T.BooleanExpression, T.ExceptionIdentifier, T.CallExpression, T.GroupingExpression, T.BooleanExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
+                            
                             if (this.head.type == T.IfStatement) {
                                 symbol = this.push(this.add({
                                     type: T.TruePart,
@@ -761,6 +750,7 @@ AstGenerator.prototype = {
                             
                         case "]":
                             popToAndIncluding(T.ArrayLiteral, T.MemberExpression);
+                            
                             break;
                             
                         case "{":
@@ -813,6 +803,7 @@ AstGenerator.prototype = {
                             
                         case "}":
                             popWhileNot(T.SourceElement, T.Block, T.ObjectLiteral);
+                            
                             // if we are inside some construct, lets pop up to the main block                    
                             
                             if (this.head.type == T.SourceElement) {
@@ -821,7 +812,7 @@ AstGenerator.prototype = {
                             // pop the current symbol
                             this.pop();
                             // check if we need to pop further
-                            popIfRequired();
+                            //popIfRequired();
                             switch (this.head.type) {
                                 case T.TruePart:
                                     this.pop();
@@ -862,7 +853,6 @@ AstGenerator.prototype = {
             }
             previousToken = token;
         }
-        popWhileNot(T.SourceElement);
         console.log(this.head);
         if (this.stack.length > 2) {
             //            throw new Error("Non-terminated " + this.stack[this.stack.length - 1].type);
