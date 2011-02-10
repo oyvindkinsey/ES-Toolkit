@@ -180,6 +180,9 @@ Compiler.prototype = {
             case T.InExpression:
                 separationChar = " in ";
                 break;
+            case T.ThrowStatement:
+                push("throw ");
+                break;
             default:
             // push(symbol.value);
         
