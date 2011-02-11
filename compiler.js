@@ -8,7 +8,7 @@ function Compiler(ast){
 }
 
 Compiler.prototype = {
-    processSymbol: function renderSymbol(symbol, parent){
+    processSymbol: function renderSymbol(symbol, next, parent){
         var T = AstGenerator.prototype.TYPES;
         var b = this.buffer, push = function(s){
             b.push(s);
@@ -30,11 +30,11 @@ Compiler.prototype = {
                 separationChar = ",";
                 break;
             case T.PropertyName:
-                if (!(symbol.value in Tokenizer.prototype.KEYWORDS) && symbol.value != "this") {
+                if (!(symbol.value in Tokenizer.prototype.KEYWORDS) && symbol.value != "this" && /\w+/.test(symbol.value)) {
                     push(symbol.value);
                 }
                 else {
-                    push("\"" + symbol.value + "\"");
+                push("\"" + symbol.value + "\"");
                 }
                 break;
             case T.StringLiteral:
@@ -97,13 +97,17 @@ Compiler.prototype = {
                 push("function" + (symbol.value ? " " + symbol.value : ""));
                 break;
             case T.IfStatement:
-                push("if");
+                push(((b[b.length - 1] == "else") ? " " : "") + "if");
                 break;
             case T.Keyword:
                 if (this.prevSymbol.type == T.Identifier || this.prevSymbol.type == T.DotExpression) {
                     push(" ");
                 }
                 push(symbol.value);
+                console.log("c: " + next.type)
+                if (next.type == T.Identifier) {
+                    push(" ");
+                }
                 break;
             case T.VariableStatement:
                 push("var ");
@@ -113,8 +117,13 @@ Compiler.prototype = {
                 push("=");
                 break;
             case T.UnaryExpression:
-                //make sure we don't emit ++ or -- when we have an UnaryEpression in an AdditiveExpression with the same operator 
-                push((b[b.length - 1] == symbol.value ? " " : "") + symbol.value);
+                if (/\w+/.test(symbol.value)) {
+                    push(symbol.value + " ");
+                }
+                else {
+                    //make sure we don't emit ++ or -- when we have an UnaryEpression in an AdditiveExpression with the same operator 
+                    push((b[b.length - 1] == symbol.value ? " " : "") + symbol.value);
+                }
                 break;
             case T.SwitchStatement:
                 push("switch");
@@ -180,6 +189,30 @@ Compiler.prototype = {
             case T.InExpression:
                 separationChar = " in ";
                 break;
+            case T.ThrowStatement:
+                push("throw ");
+                break;
+            case T.BitwiseExpression:
+                separationChar = symbol.value;
+                break;
+            case T.NullLiteral:
+                push("null");
+                break;
+            case T.TryStatement:
+                push("try");
+                break;
+            case T.Catch:
+                push("catch");
+                break;
+            case T.ExceptionIdentifier:
+                push("(");
+                break;
+            case T.Finally:
+                push("finally");
+                break;
+            case T.NewStatement:
+                push("new ");
+                break;
             default:
             // push(symbol.value);
         
@@ -188,7 +221,7 @@ Compiler.prototype = {
         
         if (symbol.stream) {
             for (var i = 0, len = symbol.stream.length; i < len; i++) {
-                this.processSymbol(symbol.stream[i], symbol);
+                this.processSymbol(symbol.stream[i], symbol.stream[i + 1] || {}, symbol);
                 if (separationChar && i < len - 1) {
                     push(separationChar);
                 }
@@ -232,11 +265,14 @@ Compiler.prototype = {
             case T.ArrayLiteral:
                 push("]");
                 break;
+            case T.ExceptionIdentifier:
+                push(")");
+                break;
         }
         this.prevSymbol = symbol;
     },
     compile: function(){
-        this.processSymbol(this.ast, {});
+        this.processSymbol(this.ast, {}, {});
         
         
         

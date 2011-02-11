@@ -20,12 +20,10 @@
             }
             
             #txtSrc, #txtCompiled {
-                height: 300px;
+                height: 500px;
             }
             
             #output {
-                height: 300px;
-                overflow: auto;
             }
             
             #btnParse {
@@ -54,7 +52,7 @@
                 container.appendChild(el);
                 var header = document.createElement("span");
                 
-                header.innerHTML = el.title = symbol.type + (symbol.value ? " -> " + symbol.value : "");
+                header.innerHTML = el.title = symbol.type + (symbol.pos ? " (" + symbol.pos[0] + ", " + symbol.pos[1] + ") " : "") + (symbol.value ? " -> " + symbol.value : "");
                 el.appendChild(header);
                 
                 var s;

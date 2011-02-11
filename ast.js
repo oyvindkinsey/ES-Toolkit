@@ -64,6 +64,7 @@ AstGenerator.prototype = {
         Finally: "Finally",
         Arguments: "Arguments",
         SwitchExpression: "SwitchExpression",
+        NewStatement: "NewStatement",
         SwitchBlock: "SwitchBlock",
         CaseStatement: "CaseStatement",
         DefaultStatement: "DefaultStatement",
@@ -84,6 +85,7 @@ AstGenerator.prototype = {
         ForStatement: "ForStatement",
         IfStatement: "IfStatement",
         BreakStatement: "BreakStatement",
+        BitwiseExpression: "BitwiseExpression",
         PropertyName: "PropertyName",
         PostfixExpression: "PostfixExpression",
         BooleanExpression: "BooleanExpression",
@@ -106,6 +108,7 @@ AstGenerator.prototype = {
         StringLiteral: "StringLiteral",
         NumericLiteral: "NumericLiteral",
         RegularExpressionLiteral: "RegularExpressionLiteral",
+        NullLiteral: "NullLiteral",
         ShiftExpression: "ShiftExpression"
     },
     log: function(msg){
@@ -135,16 +138,6 @@ AstGenerator.prototype = {
         var ast = this;
         var T = this.TYPES;
         
-        function popWhile(){
-            var args = Array.prototype.slice.call(arguments), l = args.length, types = {};
-            while (l--) {
-                types[args[l]] = 1;
-            }
-            while (ast.head.type in types) {
-                ast.pop();
-            }
-        }
-        
         function popToAndIncluding(){
             var args = Array.prototype.slice.call(arguments), l = args.length, types = {};
             while (l--) {
@@ -167,17 +160,20 @@ AstGenerator.prototype = {
             }
         }
         
-        function popIfRequired(){
-            while (ast.head.endOnPop) {
+        // check if we have fulfilled the current symbols expectancy
+        function popFulfilled(){
+            while (ast.head.length && ast.head.stream && ast.head.length == ast.head.stream.length) {
                 ast.pop();
             }
         }
-        
         //try {
         while (this.pos < this.length) {
             this.token = token = this.readNext();
             head = this.head;
             
+            if (token.type == TYPES.CommentMultiLine || token.type == TYPES.CommentMultiLine) {
+                continue;
+            }
             // todo: implement ASI
             if (token.type == TYPES.LineTerminator) {
                 //ignore the LineTerminator unless we need to do ASI
@@ -199,14 +195,22 @@ AstGenerator.prototype = {
                     continue;
                 }
             }
-            
+            if (!head) {
+                console.log("no head, breaking");
+                console.log([previousToken, symbol])
+                return this.symbol
+            }
             //this is such a hack!
             if (head.type == T.TryStatement && token.data != "{" && token.data != "finally" && token.data != "catch") {
                 this.pop();
                 head = this.head;
             }
             switch (token.type) {
-            
+                case TYPES.NullLiteral:
+                    symbol = this.add({
+                        type: T.NullLiteral
+                    });
+                    break;
                 case TYPES.Semicolon:
                     popWhileNot(T.SourceElement, T.Block, T.CaseBlock, T.ForExpression);
                     symbol = this.add({
@@ -248,8 +252,14 @@ AstGenerator.prototype = {
                         case "var":
                             symbol = this.push(this.add({
                                 type: T.VariableStatement,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
+                            }));
+                            break;
+                            
+                        case "new":
+                            symbol = this.push(this.add({
+                                type: T.NewStatement,
+                                pos: token.pos
                             }));
                             break;
                             
@@ -276,7 +286,7 @@ AstGenerator.prototype = {
                         case "switch":
                             symbol = this.push(this.add({
                                 type: T.SwitchStatement,
-                                endOnPop: true,
+                                length: 2,
                                 pos: token.pos
                             }));
                             break;
@@ -284,7 +294,6 @@ AstGenerator.prototype = {
                             symbol = this.push(this.add({
                                 type: T.IterationStatement,
                                 value: token.data,
-                                endOnPop: true,
                                 pos: token.pos
                             }));
                             break;
@@ -305,13 +314,12 @@ AstGenerator.prototype = {
                                 symbol = this.push(this.add({
                                     type: T.IterationStatement,
                                     value: token.data,
-                                    endOnPop: true,
                                     pos: token.pos
                                 }));
                             }
                             break;
                         case "break":
-                            popWhileNot(T.Block, T.SourceElement, T.CaseBlock);
+                            popFulfilled();
                             symbol = this.push(this.add({
                                 type: T.BreakStatement,
                                 pos: token.pos
@@ -322,44 +330,52 @@ AstGenerator.prototype = {
                             popWhileNot(T.Block);
                             symbol = this.push(this.add({
                                 type: T.CaseStatement,
-                                pos: token.pos
+                                pos: token.pos,
+                                length: 2
                             }));
                             
                             symbol = this.push(this.add({
                                 type: T.CaseClause,
-                                pos: token.pos
+                                pos: token.pos,
+                                length: 1
                             }));
                             
                             break;
                         case "if":
                             symbol = this.push(this.add({
                                 type: T.IfStatement,
-                                endOnPop: true,
                                 pos: token.pos
                             }));
                             break;
                             
                         case "else":
+                            popWhileNot(T.IfStatement);
                             // will be read by the { parser
                             symbol = this.push(this.add({
                                 type: T.FalsePart,
                                 pos: token.pos
                             }));
-                            
+                            if (this.peekNext().data != "{") {
+                                symbol.length = 1;
+                            }
                             
                             break;
                             
                         case "in":
-                            popIfRequired();
+                            popFulfilled();
+                            if (this.head.type == T.VariableDeclaration) {
+                                this.pop(2);
+                            }
                             symbol = this.push(this.add({
                                 type: T.InExpression,
                                 stream: [this.take()],
+                                length: 2,
                                 pos: token.pos
                             }));
                             break;
                             
                         case "default":
-                            popWhileNot(T.Block);
+                            popFulfilled();
                             symbol = this.push(this.add({
                                 type: T.DefaultStatement,
                                 pos: token.pos
@@ -374,8 +390,7 @@ AstGenerator.prototype = {
                         case "throw":
                             symbol = this.push(this.add({
                                 type: T.ThrowStatement,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                         case "this":
@@ -389,6 +404,14 @@ AstGenerator.prototype = {
                             symbol = this.push(this.add({
                                 type: T.ReturnStatement,
                                 pos: token.pos
+                            }));
+                            break;
+                        case "typeof":
+                            symbol = this.push(this.add({
+                                type: T.UnaryExpression,
+                                value: token.data,
+                                pos: token.pos,
+                                length: 1
                             }));
                             break;
                         default:
@@ -406,8 +429,7 @@ AstGenerator.prototype = {
                             symbol = this.push(this.add({
                                 type: T.VariableDeclaration,
                                 value: token.data,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                             
@@ -423,7 +445,7 @@ AstGenerator.prototype = {
                             });
                             break;
                         default:
-                            
+                            popFulfilled();
                             symbol = this.add({
                                 type: T.Identifier,
                                 value: token.data,
@@ -486,7 +508,8 @@ AstGenerator.prototype = {
                                 type: T.TernaryExpression,
                                 stream: [{
                                     type: T.BooleanExpression,
-                                    stream: [this.take()]
+                                    stream: [this.take()],
+                                    length: 1
                                 }],
                                 pos: token.pos
                             }));
@@ -524,6 +547,7 @@ AstGenerator.prototype = {
                                     type: T.AssignmentExpression,
                                     value: token.data,
                                     stream: [this.take()],
+                                    length: 2,
                                     pos: token.pos
                                 }));
                             }
@@ -531,7 +555,8 @@ AstGenerator.prototype = {
                             
                         case "-": //fall through	
                         case "+":
-                            if (head.type == T.AdditiveExpression || head.type == T.MultiplicativeExpression || head.type == T.AssignmentExpression || previousToken.type == TYPES.Semicolon) {
+                            popFulfilled();
+                            if (this.head.type == T.RelationalExpression || this.head.type == T.TruePart || this.head.type == T.FalsePart || this.head.type == T.ReturnStatement || this.head.type == T.AdditiveExpression || this.head.type == T.MultiplicativeExpression || this.head.type == T.AssignmentExpression || previousToken.type == TYPES.Semicolon || (previousToken.type == TYPES.Punctuator && previousToken.data == ",")) {
                                 symbol = this.push(this.add({
                                     type: T.UnaryExpression,
                                     value: token.data
@@ -541,9 +566,9 @@ AstGenerator.prototype = {
                                 symbol = this.push(this.add({
                                     type: T.AdditiveExpression,
                                     stream: [this.take()],
+                                    length: 2,
                                     value: token.data,
-                                    pos: token.pos,
-                                    endOnPop: true
+                                    pos: token.pos
                                 }));
                             }
                             break;
@@ -555,7 +580,6 @@ AstGenerator.prototype = {
                                     type: T.PostfixExpression,
                                     value: token.data,
                                     stream: [this.take()],
-                                    endOnPop: true,
                                     pos: token.pos
                                 });
                             }
@@ -569,16 +593,26 @@ AstGenerator.prototype = {
                             
                         case "||":
                         case "&&":
-                            popWhile(T.UnaryExpression, T.DotExpression, T.MemberExpression, T.AssignmentExpression, T.MultiplicativeExpression, T.AdditiveExpression, T.RelationalExpression);
+                            popFulfilled();
                             symbol = this.push(this.add({
                                 type: T.LogicalExpression,
                                 stream: [this.take()],
                                 value: token.data,
-                                pos: token.pos,
-                                endOnPop: true
+                                pos: token.pos
                             }));
                             break;
                             
+                        case "|":
+                        case "&":
+                        case "^":
+                            popFulfilled();
+                            symbol = this.push(this.add({
+                                type: T.BitwiseExpression,
+                                stream: [this.take()],
+                                value: token.data,
+                                pos: token.pos
+                            }));
+                            break;
                         case "<"://fallthrough
                         case ">"://fallthrough
                         case "<="://fallthrough
@@ -588,7 +622,7 @@ AstGenerator.prototype = {
                                 stream: [this.take()],
                                 value: token.data,
                                 pos: token.pos,
-                                endOnPop: true
+								length:2
                             }));
                             break;
                             
@@ -596,24 +630,26 @@ AstGenerator.prototype = {
                         case "===":
                         case "!=":
                         case "!==":
+                            popFulfilled();
                             //popWhile(T.UnaryExpression, T.AssignmentExpression, T.MultiplicativeExpression, T.AdditiveExpression, T.RelationalExpression);
                             symbol = this.push(this.add({
                                 type: T.EqualityExpression,
                                 value: token.data,
                                 stream: [this.take()],
-                                pos: token.pos,
-                                endOnPop: true
+                                length: 2,
+                                pos: token.pos
                             }));
                             break;
                             
                         case "/":
                         case "*":
+                        case "%":
                             symbol = this.push(this.add({
                                 type: T.MultiplicativeExpression,
                                 value: token.data,
                                 stream: [this.take()],
-                                pos: token.pos,
-                                endOnPop: true
+                                length: 2,
+                                pos: token.pos
                             }));
                             break;
                         case ".":
@@ -622,7 +658,7 @@ AstGenerator.prototype = {
                                 value: token.data,
                                 stream: [this.take()],
                                 pos: token.pos,
-                                endOnPop: true
+                                length: 2
                             }));
                             break;
                             
@@ -646,78 +682,81 @@ AstGenerator.prototype = {
                             break;
                             
                         case ",":
-                            
                             popWhileNot(T.VariableStatement, T.Arguments, T.GroupingExpression, T.ArrayLiteral, T.ObjectLiteral);
                             break;
                             
                         case "(":
-                            
-                            if (previousToken.type == TYPES.Identifier || previousToken.data == "]" || previousToken.data == ")") {
-                                if (head.type == T.MemberExpression || head.type == T.DotExpression) {
-                                    this.pop();
-                                }
-                                
-                                symbol = this.push(this.add({
-                                    type: T.CallExpression,
-                                    pos: token.pos,
-                                    stream: [this.take()]
-                                }));
-                                this.push(this.add({
-                                    type: T.Arguments,
-                                    pos: token.pos,
-                                    endOnPop: true
-                                }));
-                            }
-                            else {
-                                if (previousToken.data == "while") {
+                            switch (head.type) {
+                                case T.Catch:
                                     symbol = this.push(this.add({
-                                        type: T.WhileExpression,
+                                        type: T.ExceptionIdentifier,
                                         pos: token.pos
                                     }));
-                                }
-                                else {
-                                    switch (head.type) {
-                                        case T.Catch:
+                                    break;
+                                case T.IterationStatement:
+                                    switch (head.value) {
+                                        case "do":
+                                        case "while":
                                             symbol = this.push(this.add({
-                                                type: T.ExceptionIdentifier,
+                                                type: T.WhileExpression,
                                                 pos: token.pos
                                             }));
-                                            break;
-                                        case T.IterationStatement:
-                                            switch (head.value) {
-                                                case "while":
-                                                    symbol = this.push(this.add({
-                                                        type: T.WhileExpression,
-                                                        pos: token.pos
-                                                    }));
-                                                    
-                                                    break;
-                                                case "for":
-                                                    symbol = this.push(this.add({
-                                                        type: T.ForExpression,
-                                                        pos: token.pos
-                                                    }));
-                                                    
-                                                    break;
-                                                case "forin":
-                                                    symbol = this.push(this.add({
-                                                        type: T.ForInExpression,
-                                                        pos: token.pos
-                                                    }));
-                                                    
-                                                    break;
-                                            }
-                                            break;
                                             
-                                        case T.SwitchStatement:
+                                            break;
+                                        case "for":
                                             symbol = this.push(this.add({
-                                                type: T.SwitchExpression,
+                                                type: T.ForExpression,
                                                 pos: token.pos
                                             }));
+                                            
                                             break;
-                                        case T.IfStatement:
+                                        case "forin":
                                             symbol = this.push(this.add({
-                                                type: T.BooleanExpression,
+                                                type: T.ForInExpression,
+                                                pos: token.pos
+                                            }));
+                                            
+                                            break;
+                                            break;
+                                    }
+                                    break;
+                                    
+                                case T.SwitchStatement:
+                                    symbol = this.push(this.add({
+                                        type: T.SwitchExpression,
+                                        pos: token.pos
+                                    }));
+                                    break;
+                                case T.IfStatement:
+                                    symbol = this.push(this.add({
+                                        type: T.BooleanExpression,
+                                        pos: token.pos
+                                    }));
+                                    break;
+                                case T.UnaryExpression:
+                                    symbol = this.push(this.add({
+                                        type: T.GroupingExpression,
+                                        pos: token.pos
+                                    }));
+                                    break;
+                                default:
+                                    switch (symbol.type) {
+                                        case T.Identifier:
+                                        case T.MemberExpression:
+                                        case T.DotExpression:
+                                        case T.GroupingExpression:
+                                        case T.CallExpression:
+                                            if (head.type == T.MemberExpression || head.type == T.DotExpression) {
+                                                this.pop();
+                                            }
+                                            
+                                            symbol = this.push(this.add({
+                                                type: T.CallExpression,
+                                                pos: token.pos,
+                                                stream: [this.take()]
+                                            }));
+                                            this.push(this.add({
+                                                type: T.Arguments,
                                                 pos: token.pos
                                             }));
                                             break;
@@ -727,12 +766,14 @@ AstGenerator.prototype = {
                                                 pos: token.pos
                                             }));
                                     }
-                                }
                             }
+                            
+                            
                             break;
                             
                         case ")":
-                            popToAndIncluding(T.ExceptionIdentifier, T.CallExpression, T.GroupingExpression, T.BooleanExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
+                            popToAndIncluding(T.BooleanExpression, T.ExceptionIdentifier, T.CallExpression, T.GroupingExpression, T.BooleanExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
+                            
                             if (this.head.type == T.IfStatement) {
                                 symbol = this.push(this.add({
                                     type: T.TruePart,
@@ -761,6 +802,7 @@ AstGenerator.prototype = {
                             
                         case "]":
                             popToAndIncluding(T.ArrayLiteral, T.MemberExpression);
+                            
                             break;
                             
                         case "{":
@@ -772,8 +814,6 @@ AstGenerator.prototype = {
                                         pos: token.pos
                                     }));
                                     break;
-                                case T.TruePart:
-                                case T.FalsePart:
                                 case T.SwitchStatement:
                                 case T.IterationStatement:
                                 case T.BooleanExpression:
@@ -785,6 +825,7 @@ AstGenerator.prototype = {
                                         pos: token.pos
                                     }));
                                     break;
+                                    
                                 case T.ReturnStatement:
                                     symbol = this.push(this.add({
                                         type: T.ObjectLiteral,
@@ -793,53 +834,63 @@ AstGenerator.prototype = {
                                     break;
                                 default:
                                     
-                                    switch (previousToken.type) {
-                                        case T.Semicolon: //fall through
-                                        case T.Keyword:
-                                            symbol = this.push(this.add({
-                                                type: T.Block,
-                                                pos: token.pos
-                                            }));
-                                            break;
-                                            
-                                        default:
-                                            symbol = this.push(this.add({
-                                                type: T.ObjectLiteral,
-                                                pos: token.pos
-                                            }));
+                                    if ((head.type == T.TruePart || head.type == T.FalsePart) && this.stack[this.stack.length - 2].type == T.IfStatement) {
+                                        symbol = this.push(this.add({
+                                            type: T.Block,
+                                            pos: token.pos
+                                        }));
+                                    }
+                                    else {
+                                        switch (previousToken.type) {
+                                            case T.Semicolon: //fall through
+                                            case T.Keyword:
+                                                symbol = this.push(this.add({
+                                                    type: T.Block,
+                                                    pos: token.pos
+                                                }));
+                                                break;
+                                                
+                                            default:
+                                                symbol = this.push(this.add({
+                                                    type: T.ObjectLiteral,
+                                                    pos: token.pos
+                                                }));
+                                        }
                                     }
                             }
                             break;
                             
                         case "}":
-                            popWhileNot(T.SourceElement, T.Block, T.ObjectLiteral);
-                            // if we are inside some construct, lets pop up to the main block                    
+                            // pop up to the nearest symbol terminated by }
+                            popWhileNot(T.SourceElement, T.Block, T.ObjectLiteral, T.TruePart, T.FalsePart);
                             
-                            if (this.head.type == T.SourceElement) {
-                                this.pop();
-                            }
-                            // pop the current symbol
+                            // pop the }
                             this.pop();
-                            // check if we need to pop further
-                            popIfRequired();
                             switch (this.head.type) {
                                 case T.TruePart:
-                                    this.pop();
-                                    var next = this.peekNext();
-                                    if (next.type != TYPES.Keyword || next.data != "else") {
-                                        // pop out of the IfStatement
+                                    if (this.stack[this.stack.length - 2].type == T.IfStatement) {
                                         this.pop();
+                                        var next = this.peekNext();
+                                        if (next.type != TYPES.Keyword || next.data != "else") {
+                                            // pop out of the IfStatement
+                                            this.pop();
+                                        }
                                     }
                                     break;
                                 case T.Finally:
                                 case T.FalsePart:
-                                    // pop out of the IfStatement
-                                    this.pop(2);
+                                    if (this.head.type == T.IfStatement || this.head.type == T.FalsePart) {
+                                        // pop out of the IfStatement
+                                        this.pop(2);
+                                    }
                                     break;
+                                case T.FunctionDeclaration:
+                                case T.FunctionExpression:
                                 case T.Catch:
                                     this.pop();
                                     break;
                             }
+                            popFulfilled();
                             break;
                         case ">>":
                         case ">>>":

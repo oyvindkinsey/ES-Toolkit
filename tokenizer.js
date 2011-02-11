@@ -4,8 +4,8 @@ function Tokenizer(src){
     this.pos = 0;
     this.tokens = [];
     this.lastToken = {};
-    this.line = 0;
-    this.col = 0;
+    this.line = 1;
+    this.col = 1;
 }
 
 Tokenizer.prototype = {
@@ -33,7 +33,7 @@ Tokenizer.prototype = {
      */
     KEYWORDS: (function(){
         // do not add 'this' here
-        var punctuators = "break case catch continue default delete do else finally for function if in instanceof new return switch throw try typeof var void while with".split(" ");
+        var punctuators = "break case catch continue default delete do else finally for function if in instanceof new return switch throw try typeof var void while with class".split(" ");
         var map = {};
         for (var i = 0, len = punctuators.length; i < len; i++) {
             map[punctuators[i]] = 1;
@@ -134,10 +134,6 @@ Tokenizer.prototype = {
                 break;
                 
             case this.TYPES.NumericLiteral:
-                if (data == "+" || data == "-") {
-                    this.pos++;
-                }
-                
                 if ((data == "0" && this.peek(1) == "x")) {
                     //move past the x
                     this.pos += 2;
@@ -248,14 +244,7 @@ Tokenizer.prototype = {
                     continue;
                 }
             }
-            if (chr == "-" || chr == "+") {
-                nextChr = this.peek(1);
-                if (/[\d.]/.test(nextChr) && (this.lastToken.type == this.TYPES.LineTerminator || this.lastToken.type == this.TYPES.Punctuator)) {
-                    this.newToken(this.TYPES.NumericLiteral, chr);
-                    continue;
-                }
-            }
-            
+                        
             if (chr == ";") {
                 // add this as a special token instead of as a Punctuator
                 this.newToken(this.TYPES.Semicolon, chr);
