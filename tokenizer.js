@@ -70,7 +70,7 @@ Tokenizer.prototype = {
     peekOperators: function(){
         var pos = this.pos;
         var chr = "", next;
-        while (((next = this.peek()) && ((chr += next) in this.PUNCTUATORS))) {
+        while (((next = this.peek()) && (this.PUNCTUATORS.hasOwnProperty((chr += next))))) {
             this.pos++;
         }
         var nextPos = this.pos;
@@ -102,11 +102,15 @@ Tokenizer.prototype = {
             case this.TYPES.CommentSingleLine:
                 nextPos = this.source.indexOf("\n", pos) + 1;
                 token.value = this.source.substring(pos + 2, nextPos - 1);
+                this.line++;
+                this.col = 1;
                 break;
                 
             case this.TYPES.CommentMultiLine:
                 nextPos = this.source.indexOf("*/", pos) + 2;
                 token.value = this.source.substring(pos + 2, nextPos - 3);
+                this.line += token.value.split(/\n/).length - 1;
+                this.col = 1;
                 break;
                 
             case this.TYPES.StringLiteral:
@@ -131,6 +135,7 @@ Tokenizer.prototype = {
                 this.pos++;
                 nextPos = this.pos;
                 token.value = this.source.substring(pos + 1, nextPos - 1);
+                this.col += token.value.length + 2;
                 break;
                 
             case this.TYPES.NumericLiteral:
@@ -150,6 +155,7 @@ Tokenizer.prototype = {
                 }
                 nextPos = this.pos;
                 token.value = this.source.substring(pos, nextPos);
+                this.col += token.value.length;
                 break;
                 
             case this.TYPES.RegularExpressionLiteral:
@@ -180,10 +186,12 @@ Tokenizer.prototype = {
                     nextPos += chr.length;
                 }
                 token.value = this.source.substring(pos, nextPos);
+                this.col += token.value.length;
                 break;
                 
             default:
                 nextPos += data.length;
+                this.col += data.length;
                 
         }
         
@@ -202,7 +210,7 @@ Tokenizer.prototype = {
         
             if (chr == "\n") {
                 this.line++;
-                this.col = 0;
+                this.col = 1;
                 if (this.lastToken.type == this.TYPES.LineTerminator) {
                     //no need to add multiple LineTerminator tokens
                     this.pos++;
@@ -212,16 +220,16 @@ Tokenizer.prototype = {
                 }
                 continue;
             }
-            this.col++;
             //skip whitespace
             if (/\s/.test(chr)) {
                 this.pos++;
+                this.col++;
                 continue;
             }
             
             
             if (chr == "\\") {
-                throw new SyntaxError("Unexpected token ILLEGAL");
+                throw new SyntaxError("Unexpected token ILLEGAL (" +this.line + "," + this.col + ")");
             }
             
             //this might be a comment or a regexp
@@ -244,13 +252,13 @@ Tokenizer.prototype = {
                     continue;
                 }
             }
-                        
+            
             if (chr == ";") {
                 // add this as a special token instead of as a Punctuator
                 this.newToken(this.TYPES.Semicolon, chr);
                 continue;
             }
-            if (chr in this.PUNCTUATORS) {
+            if (this.PUNCTUATORS.hasOwnProperty(chr)) {
                 if (chr == ".") {
                     //if the next character is a digit then this is a number
                     if (/\d/.test(this.peek(1))) {
@@ -278,7 +286,7 @@ Tokenizer.prototype = {
             
             //keywords
             var word = this.peekWord();
-            if (word in this.KEYWORDS) {
+            if (this.KEYWORDS.hasOwnProperty(word)) {
                 this.newToken(this.TYPES.Keyword, word);
                 continue;
             }

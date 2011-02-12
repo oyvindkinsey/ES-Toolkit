@@ -30,11 +30,11 @@ Compiler.prototype = {
                 separationChar = ",";
                 break;
             case T.PropertyName:
-                if (!(symbol.value in Tokenizer.prototype.KEYWORDS) && symbol.value != "this" && /\w+/.test(symbol.value)) {
+                if (symbol.data == Tokenizer.prototype.TYPES.Identifier) { // !(Tokenizer.prototype.KEYWORDS.hasOwnProperty(symbol.value)) && symbol.value != "this" && /^[\w$]+$/.test(symbol.value)) {
                     push(symbol.value);
                 }
                 else {
-                push("\"" + symbol.value + "\"");
+                    push("\"" + symbol.value + "\"");
                 }
                 break;
             case T.StringLiteral:
@@ -75,12 +75,10 @@ Compiler.prototype = {
                 push("(");
                 break;
             case T.FalsePart:
-                if (parent.type == T.IfStatement) {
-                    push("else");
-                }
-                else {
-                    push(":");
-                }
+                push("else");
+                break;
+            case T.TernaryFalsePart:
+                push(":");
                 break;
             case T.Arguments:
                 push("(");
@@ -104,7 +102,6 @@ Compiler.prototype = {
                     push(" ");
                 }
                 push(symbol.value);
-                console.log("c: " + next.type)
                 if (next.type == T.Identifier) {
                     push(" ");
                 }
@@ -172,10 +169,8 @@ Compiler.prototype = {
                     push("(");
                 }
                 break;
-            case T.TruePart:
-                if (parent.type == T.TernaryExpression) {
-                    push("?");
-                }
+            case T.TernaryTruePart:
+                push("?");
                 break;
             case T.FalsePart:
                 push(parent.type == T.IfStatement ? "else" : ":");
@@ -213,6 +208,12 @@ Compiler.prototype = {
             case T.NewStatement:
                 push("new ");
                 break;
+            case T.InstanceOfExpression:
+                separationChar = "instanceof";
+                break;
+            case T.ExpressionExpression:
+                separationChar = ",";
+                break;
             default:
             // push(symbol.value);
         
@@ -221,9 +222,16 @@ Compiler.prototype = {
         
         if (symbol.stream) {
             for (var i = 0, len = symbol.stream.length; i < len; i++) {
-                this.processSymbol(symbol.stream[i], symbol.stream[i + 1] || {}, symbol);
+                var l = symbol.stream[i - 1] || {}, s = symbol.stream[i], n = symbol.stream[i + 1] || {};
+                this.processSymbol(s, n, symbol);
                 if (separationChar && i < len - 1) {
+                    if (symbol.type == T.InstanceOfExpression && s.type == T.Identifier) {
+                        push(" ");
+                    }
                     push(separationChar);
+                    if (symbol.type == T.InstanceOfExpression && n.type == T.Identifier) {
+                        push(" ");
+                    }
                 }
             }
         }
