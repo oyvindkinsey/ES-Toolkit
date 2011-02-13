@@ -50,14 +50,11 @@ Compiler.prototype = {
                 break;
             case T.IterationStatement:
                 if (symbol.value == "do") {
-                    push("do");
+                    push(" do ");
                 }
                 break;
             case T.Identifier:
-                if (this.prevSymbol.type == T.Keyword) {
-                    push(" ");
-                }
-                push(symbol.value);
+                push(" " + symbol.value + " ");
                 break;
             case T.VariableDeclaration:
                 push(symbol.value);
@@ -75,7 +72,7 @@ Compiler.prototype = {
                 push("(");
                 break;
             case T.FalsePart:
-                push("else");
+                push(" else ");
                 break;
             case T.TernaryFalsePart:
                 push(":");
@@ -92,19 +89,13 @@ Compiler.prototype = {
                 break;
             case T.FunctionDeclaration:
             case T.FunctionExpression:
-                push("function" + (symbol.value ? " " + symbol.value : ""));
+                push(" function " + (symbol.value || ""));
                 break;
             case T.IfStatement:
-                push(((b[b.length - 1] == "else") ? " " : "") + "if");
+                push(" if ");
                 break;
             case T.Keyword:
-                if (this.prevSymbol.type == T.Identifier || this.prevSymbol.type == T.DotExpression) {
-                    push(" ");
-                }
                 push(symbol.value);
-                if (next.type == T.Identifier) {
-                    push(" ");
-                }
                 break;
             case T.VariableStatement:
                 push("var ");
@@ -114,25 +105,19 @@ Compiler.prototype = {
                 push("=");
                 break;
             case T.UnaryExpression:
-                if (/\w+/.test(symbol.value)) {
-                    push(symbol.value + " ");
-                }
-                else {
-                    //make sure we don't emit ++ or -- when we have an UnaryEpression in an AdditiveExpression with the same operator 
-                    push((b[b.length - 1] == symbol.value ? " " : "") + symbol.value);
-                }
+                push(" " + symbol.value + " ");
                 break;
             case T.SwitchStatement:
-                push("switch");
+                push(" switch ");
                 break;
             case T.SwitchExpression:
                 push("(");
                 break;
             case T.CaseStatement:
-                push("case ");
+                push(" case ");
                 break;
             case T.DefaultStatement:
-                push("default:");
+                push(" default:");
                 break;
             case T.MemberExpression:
                 separationChar = "[";
@@ -147,10 +132,10 @@ Compiler.prototype = {
                 push(symbol.value);
                 break;
             case T.WhileExpression:
-                push("while(");
+                push(" while(");
                 break;
             case T.ForExpression:
-                push("for(");
+                push(" for(");
                 break;
             case T.ShiftExpression:
             case T.LogicalExpression:
@@ -173,19 +158,19 @@ Compiler.prototype = {
                 push("?");
                 break;
             case T.FalsePart:
-                push(parent.type == T.IfStatement ? "else" : ":");
+                push(" else ");
                 break;
             case T.ReturnStatement:
-                push("return ");
+                push(" return ");
                 break;
             case T.BreakStatement:
-                push("break");
+                push(" break ");
                 break;
             case T.InExpression:
                 separationChar = " in ";
                 break;
             case T.ThrowStatement:
-                push("throw ");
+                push(" throw ");
                 break;
             case T.BitwiseExpression:
                 separationChar = symbol.value;
@@ -194,24 +179,24 @@ Compiler.prototype = {
                 push("null");
                 break;
             case T.TryStatement:
-                push("try");
+                push(" try");
                 break;
             case T.Catch:
-                push("catch");
+                push(" catch ");
                 break;
             case T.ExceptionIdentifier:
                 push("(");
                 break;
             case T.Finally:
-                push("finally");
+                push(" finally ");
                 break;
             case T.NewStatement:
-                push("new ");
+                push(" new ");
                 break;
             case T.InstanceOfExpression:
-                separationChar = "instanceof";
+                separationChar = " instanceof ";
                 break;
-            case T.ExpressionExpression:
+            case T.ExpressionStatement:
                 separationChar = ",";
                 break;
             default:
@@ -279,11 +264,39 @@ Compiler.prototype = {
         }
         this.prevSymbol = symbol;
     },
+    compress: function(stream){
+        var buffer = [], i = 0, len = stream.length;
+        var left, right;
+        if (stream.length < 3) {
+            //we need at least three tokens to compress
+            return stream;
+        }
+        right = stream[0];
+        if (right.charAt(0) == " ") {
+            right = right.substring(1);
+        }
+        for (; i < len; i++) {
+            left = right;
+            right = stream[i + 1] || "";
+            // trim adjacent whitespace and whitespace/punctuator combinations
+            var l = left.charAt(left.length - 1), r = right.charAt(0);
+            if (l == " " && (r == " " || Tokenizer.prototype.PUNCTUATORS.hasOwnProperty(r))) {
+                left = left.substring(0, left.length - 1);
+				l = left.charAt(left.length - 1)
+            }
+            if (r == " " && Tokenizer.prototype.PUNCTUATORS.hasOwnProperty(l)) {
+                right = right.substring(1);
+            }
+            buffer.push(left);
+        }
+        buffer.push(right);
+        return buffer;
+    },
     compile: function(){
         this.processSymbol(this.ast, {}, {});
         
         
         
-        return this.buffer.slice(1, -1).join("");
+        return this.compress(this.buffer.slice(1, -1)).join("");
     }
 };

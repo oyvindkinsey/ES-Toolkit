@@ -79,7 +79,7 @@ AstGenerator.prototype = {
         TernaryExpression: "TernaryExpression",
         ForExpression: "ForExpression",
         ForInExpression: "ForInExpression",
-        IterationBlock: "IterationBlock ",
+        IterationPart: "IterationPart",
         TruePart: "TruePart",
         FalsePart: "FalsePart",
         TernaryTruePart: "TernaryTruePart",
@@ -113,7 +113,7 @@ AstGenerator.prototype = {
         NullLiteral: "NullLiteral",
         ShiftExpression: "ShiftExpression",
         InstanceOfExpression: "InstanceOfExpression",
-        ExpressionExpression: "ExpressionExpression"
+        ExpressionStatement: "ExpressionStatement"
     },
     log: function(msg){
         console.log("AST: " + msg);
@@ -202,7 +202,7 @@ AstGenerator.prototype = {
             if (!head) {
                 console.log("no head, breaking");
                 console.log([previousToken, symbol])
-                return this.symbol
+                //return this.symbol
             }
             //this is such a hack!
             if (head.type == T.TryStatement && token.data != "{" && token.data != "finally" && token.data != "catch") {
@@ -541,7 +541,8 @@ AstGenerator.prototype = {
                             symbol = this.push(this.add({
                                 type: T.UnaryExpression,
                                 value: token.data,
-                                pos: token.pos
+                                pos: token.pos,
+                                length: 1
                             }));
                             break;
                             
@@ -615,7 +616,8 @@ AstGenerator.prototype = {
                                 type: T.LogicalExpression,
                                 stream: [this.take()],
                                 value: token.data,
-                                pos: token.pos
+                                pos: token.pos,
+                                length: 2
                             }));
                             break;
                             
@@ -699,15 +701,24 @@ AstGenerator.prototype = {
                             break;
                             
                         case ",":
-                            popFulfilled();
-                            if (this.head.type == T.SourceElement || this.head.type == T.ForExpression) {
-                                this.push(this.add({
-                                    type: T.ExpressionExpression,
-                                    stream: [this.take()]
-                                }));
-                            }
-                            else {
-                                popWhileNot(T.VariableStatement, T.Arguments, T.GroupingExpression, T.ArrayLiteral, T.ObjectLiteral);
+                            
+                            popWhileNot(T.ForExpression, T.VariableStatement, T.Arguments, T.GroupingExpression, T.ArrayLiteral, T.ObjectLiteral, T.TruePart, T.FalsePart, T.IterationPart);
+                            switch (this.head.type) {
+                                case T.ExpressionStatement:
+                                    break;
+                                case T.SourceElement:
+                                case T.ForExpression:
+                                case T.Block:
+                                case T.TruePart:
+                                case T.FalsePart:
+                                case T.IterationPart:
+                                    this.push(this.add({
+                                        type: T.ExpressionStatement,
+                                        stream: [this.take()]
+                                    }));
+                                    break;
+                                default:
+                                    
                             }
                             break;
                             
@@ -822,12 +833,21 @@ AstGenerator.prototype = {
                         case ")":
                             popToAndIncluding(T.BooleanExpression, T.ExceptionIdentifier, T.CallExpression, T.GroupingExpression, T.BooleanExpression, T.SwitchExpression, T.ForExpression, T.WhileExpression);
                             
-                            if (this.head.type == T.IfStatement) {
-                                symbol = this.push(this.add({
-                                    type: T.TruePart,
-                                    pos: token.pos,
-                                    length: 1
-                                }));
+                            switch (this.head.type) {
+                                case T.IfStatement:
+                                    symbol = this.push(this.add({
+                                        type: T.TruePart,
+                                        pos: token.pos,
+                                        length: 1
+                                    }));
+                                    break;
+                                case T.IterationStatement:
+                                    symbol = this.push(this.add({
+                                        type: T.IterationPart,
+                                        pos: token.pos,
+                                        length: 1
+                                    }));
+                                    break;
                             }
                             break;
                             
@@ -864,7 +884,7 @@ AstGenerator.prototype = {
                                     }));
                                     break;
                                 case T.SwitchStatement:
-                                case T.IterationStatement:
+                                case T.IterationPart:
                                 case T.BooleanExpression:
                                 case T.Catch:
                                 case T.Finally:
@@ -920,24 +940,34 @@ AstGenerator.prototype = {
                                     this.pop();
                                     var next = this.peekNext();
                                     if (next.type != TYPES.Keyword || next.data != "else") {
-                                        // pop out of the IfStatement
-                                        this.pop();
+                                        // pop out fo the ifstatement, potentially across levels
+                                        while (this.head.type == T.IfStatement || this.head.type == T.TruePart || this.head.type == T.FalsePart) {
+                                            this.pop();
+                                        }
+                                    }
+                                    
+                                    break;
+                                case T.FalsePart:
+                                    this.pop(2);
+                                    var next = this.peekNext();
+                                    if (next.type != TYPES.Keyword || next.data != "else") {
+                                        // pop out fo the ifstatement, potentially across levels
+                                        while (this.head.type == T.IfStatement || this.head.type == T.TruePart || this.head.type == T.FalsePart) {
+                                            this.pop();
+                                        }
                                     }
                                     break;
                                 case T.Finally:
-                                case T.FalsePart:
+                                case T.IterationPart:
                                     // pop out of the IfStatement
                                     this.pop(2);
                                     break;
                                 case T.FunctionDeclaration:
                                 case T.FunctionExpression:
                                 case T.Catch:
-                                case T.IterationStatement:
                                     this.pop();
                                     break;
                             }
-                            
-                            popFulfilled();
                             break;
                         case ">>":
                         case ">>>":

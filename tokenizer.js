@@ -129,7 +129,7 @@ Tokenizer.prototype = {
                         escaped = false;
                     }
                     if (chr == "\n") {
-                        throw new SyntaxError("Unexspected \\n");
+                        throw new SyntaxError("Unexspected \\n (" + this.line + "," + this.col + ")");
                     }
                 }
                 this.pos++;
@@ -229,7 +229,7 @@ Tokenizer.prototype = {
             
             
             if (chr == "\\") {
-                throw new SyntaxError("Unexpected token ILLEGAL (" +this.line + "," + this.col + ")");
+                throw new SyntaxError("Unexpected token ILLEGAL (" + this.line + "," + this.col + ")");
             }
             
             //this might be a comment or a regexp
@@ -246,8 +246,7 @@ Tokenizer.prototype = {
                     continue;
                 }
                 
-                // having two numbers and two regular expressions afte another are both invalid and weird
-                if (!(/[\)\]\w$\"\']/.test(this.lastToken.data))) {
+                if (this.lastToken.type == this.TYPES.Keyword || !(/[\)\]\w$\"\']/.test(this.lastToken.data))) {
                     this.newToken(this.TYPES.RegularExpressionLiteral, chr);
                     continue;
                 }
