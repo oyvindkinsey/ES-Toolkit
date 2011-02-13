@@ -19,14 +19,14 @@ Tokenizer.prototype = {
         NullLiteral: "NullLiteral",
         NumericLiteral: "NumericLiteral",
         RegularExpressionLiteral: "RegularExpressionLiteral",
-        Paren: "Paren",
-        Block: "Block",
         CommentSingleLine: "CommentSingleLine",
         CommentMultiLine: "CommentMultiLine",
         Punctuator: "Punctuator",
         LineTerminator: "LineTerminator",
         Semicolon: "Semicolon",
-        Identifier: "Identifier"
+        Identifier: "Identifier",
+        Whitespace: "Whitespace",
+        EOF: "EOF"
     },
     /*
      * These are all treated as keywords and ends up as Keyword tokens
@@ -82,7 +82,7 @@ Tokenizer.prototype = {
      */
     peek: function(start){
         start = this.pos + (start || 0);
-        return this.source.slice(start, start + 1);
+        return this.source.charAt(start);
     },
     /*
      * Adds a new token of the given type to the stream, moving the index and validating the tokens content.
@@ -101,6 +101,9 @@ Tokenizer.prototype = {
         switch (type) {
             case this.TYPES.CommentSingleLine:
                 nextPos = this.source.indexOf("\n", pos) + 1;
+                if (nextPos === 0) {
+                    nextPos = this.length + 1;
+                }
                 token.value = this.source.substring(pos + 2, nextPos - 1);
                 this.line++;
                 this.col = 1;
@@ -149,7 +152,7 @@ Tokenizer.prototype = {
                 }
                 else {
                     //find the next chr that's not a digit or .
-                    while (/[\d.e]/i.test((chr = this.peek()))) {
+                    while (/[\d.e]/i.test((chr = this.peek())) && this.pos < this.length) {
                         this.pos++;
                     }
                 }
@@ -174,7 +177,7 @@ Tokenizer.prototype = {
                     else {
                         escaped = false;
                     }
-                    if (chr == "\n") {
+                    if (chr == "\n" || chr == "") {
                         throw new SyntaxError("Invalid regular expression: missing /");
                     }
                 }
@@ -198,112 +201,92 @@ Tokenizer.prototype = {
         // update the index
         this.pos = nextPos;
         this.log("newToken: " + type + ": " + (token.value || data || ""));
+        return token;
     },
-    /*
-     * This contains the main loop, reading a single character at a time. How many positions each iteration moves ahead
-     * is up to the token parser
-     */
-    parse: function(){
-        var chr, nextChr;
+    read: function(expectsRegExp){
+        var chr = this.peek(), nextChr;
+        if (chr === "") {
+            return {
+                type: this.TYPES.EOF
+            };
+        }
         
-        while ((chr = this.peek())) {
+        if (chr == "\n") {
+            this.line++;
+            this.col = 1;
+            return this.newToken(this.TYPES.LineTerminator, chr);
+        }
+        //skip whitespace
+        if (/\s/.test(chr)) {
+            this.pos++;
+            this.col++;
+            return {
+                type: this.TYPES.Whitespace
+            };
+        }
         
-            if (chr == "\n") {
-                this.line++;
-                this.col = 1;
-                if (this.lastToken.type == this.TYPES.LineTerminator) {
-                    //no need to add multiple LineTerminator tokens
-                    this.pos++;
-                }
-                else {
-                    this.newToken(this.TYPES.LineTerminator, chr);
-                }
-                continue;
+        
+        if (chr == "\\") {
+            throw new SyntaxError("Unexpected token ILLEGAL (" + this.line + "," + this.col + ")");
+        }
+        
+        //this might be a comment or a regexp
+        if (chr == "/") {
+            nextChr = this.peek(1);
+            if (nextChr == "/") {
+                // single line comment
+                return this.newToken(this.TYPES.CommentSingleLine, chr);
             }
-            //skip whitespace
-            if (/\s/.test(chr)) {
-                this.pos++;
-                this.col++;
-                continue;
+            if (nextChr == "*") {
+                // multi line comment
+                return this.newToken(this.TYPES.CommentMultiLine, chr);
             }
-            
-            
-            if (chr == "\\") {
-                throw new SyntaxError("Unexpected token ILLEGAL (" + this.line + "," + this.col + ")");
-            }
-            
-            //this might be a comment or a regexp
-            if (chr == "/") {
-                nextChr = this.peek(1);
-                if (nextChr == "/") {
-                    // single line comment
-                    this.newToken(this.TYPES.CommentSingleLine, chr);
-                    continue;
-                }
-                if (nextChr == "*") {
-                    // multi line comment
-                    this.newToken(this.TYPES.CommentMultiLine, chr);
-                    continue;
-                }
-                
-                if (this.lastToken.type == this.TYPES.Keyword || !(/[\)\]\w$\"\']/.test(this.lastToken.data))) {
-                    this.newToken(this.TYPES.RegularExpressionLiteral, chr);
-                    continue;
-                }
-            }
-            
-            if (chr == ";") {
-                // add this as a special token instead of as a Punctuator
-                this.newToken(this.TYPES.Semicolon, chr);
-                continue;
-            }
-            if (this.PUNCTUATORS.hasOwnProperty(chr)) {
-                if (chr == ".") {
-                    //if the next character is a digit then this is a number
-                    if (/\d/.test(this.peek(1))) {
-                        this.newToken(this.TYPES.NumericLiteral, chr);
-                        continue;
-                    }
-                }
-                //see if we can find more
-                chr = this.peekOperators();
-                this.newToken(this.TYPES.Punctuator, chr);
-                continue;
-            }
-            
-            //this is a string
-            if (chr == "\"" || chr == "'") {
-                this.newToken(this.TYPES.StringLiteral, chr);
-                continue;
-            }
-            
-            //this is a number
-            if (/\d/.test(chr)) {
-                this.newToken(this.TYPES.NumericLiteral, chr);
-                continue;
-            }
-            
-            //keywords
-            var word = this.peekWord();
-            if (this.KEYWORDS.hasOwnProperty(word)) {
-                this.newToken(this.TYPES.Keyword, word);
-                continue;
-            }
-            switch (word) {
-                case "null":
-                    this.newToken(this.TYPES.NullLiteral, word);
-                    break;
-                case "true": // fall through
-                case "false":
-                    this.newToken(this.TYPES.BooleanLiteral, word);
-                    break;
-                default:
-                    //what's left now are identifiers (variables, function names, types - these will be turned into symbols by the AST generator
-                    this.newToken(this.TYPES.Identifier, word);
+            if (expectsRegExp) {
+                return this.newToken(this.TYPES.RegularExpressionLiteral, chr);
             }
         }
         
-        return this.tokens;
+        if (chr == ";") {
+            // add this as a special token instead of as a Punctuator
+            return this.newToken(this.TYPES.Semicolon, chr);
+        }
+        if (this.PUNCTUATORS.hasOwnProperty(chr)) {
+            if (chr == ".") {
+                //if the next character is a digit then this is a number
+                if (/\d/.test(this.peek(1))) {
+                    return this.newToken(this.TYPES.NumericLiteral, chr);
+                }
+            }
+            //see if we can find more
+            chr = this.peekOperators();
+            return this.newToken(this.TYPES.Punctuator, chr);
+        }
+        
+        //this is a string
+        if (chr == "\"" || chr == "'") {
+            return this.newToken(this.TYPES.StringLiteral, chr);
+        }
+        
+        //this is a number
+        if (/\d/.test(chr)) {
+            return this.newToken(this.TYPES.NumericLiteral, chr);
+        }
+        
+        //keywords
+        var word = this.peekWord();
+        if (this.KEYWORDS.hasOwnProperty(word)) {
+            return this.newToken(this.TYPES.Keyword, word);
+        }
+        switch (word) {
+            case "null":
+                return this.newToken(this.TYPES.NullLiteral, word);
+            case "true": // fall through
+            case "false":
+                return this.newToken(this.TYPES.BooleanLiteral, word);
+            default:
+                //what's left now are identifiers (variables, function names, types - these will be turned into symbols by the AST generator
+                return this.newToken(this.TYPES.Identifier, word);
+        }
     }
 };
 

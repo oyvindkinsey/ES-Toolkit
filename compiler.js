@@ -282,7 +282,7 @@ Compiler.prototype = {
             var l = left.charAt(left.length - 1), r = right.charAt(0);
             if (l == " " && (r == " " || Tokenizer.prototype.PUNCTUATORS.hasOwnProperty(r))) {
                 left = left.substring(0, left.length - 1);
-				l = left.charAt(left.length - 1)
+                l = left.charAt(left.length - 1)
             }
             if (r == " " && Tokenizer.prototype.PUNCTUATORS.hasOwnProperty(l)) {
                 right = right.substring(1);

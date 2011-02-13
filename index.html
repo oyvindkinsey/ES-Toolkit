@@ -76,19 +76,19 @@
                     localStorage.setItem("source", input.value);
                 }
                 var tokenizer = new Tokenizer(input.value);
-                
+                window.tokenizer = tokenizer;
                 var start = new Date();
-                var stream = tokenizer.parse();
-                var finishedParsing = new Date();
-                var timeSpentParsing = finishedParsing.valueOf() - start.valueOf();
-                console.log("parsed into tokens in " + timeSpentParsing + "ms");
+                //                var stream = tokenizer.parse();
+                //                var finishedParsing = new Date();
+                //                var timeSpentParsing = finishedParsing.valueOf() - start.valueOf();
+                //                console.log("parsed into tokens in " + timeSpentParsing + "ms");
                 
-                var generator = new AstGenerator(stream);
+                var generator = new AstGenerator(tokenizer);
                 window.generator = generator;
                 var ast = generator.read();
                 var finishedAsting = new Date();
                 
-                var timeSpentASTing = finishedAsting.valueOf() - finishedParsing.valueOf();
+                var timeSpentASTing = finishedAsting.valueOf() - start.valueOf();
                 
                 var compiler = new Compiler(ast);
                 txtCompiled.value = compiler.compile();
@@ -97,8 +97,7 @@
                 
                 console.log("generated AST in " + timeSpentASTing + "ms");
                 var el = document.createElement("div");
-                el.innerHTML = "parsing: " + timeSpentParsing + "ms<br/>" +
-                "generating AST: " +
+                el.innerHTML = "generating AST: " +
                 timeSpentASTing +
                 "ms<br/>" +
                 "compiling javascript: " +
@@ -142,6 +141,6 @@
             }
         }
         
-        parseSource();
+      //  parseSource();
     </script>
 </html>

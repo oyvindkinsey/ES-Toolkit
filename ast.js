@@ -1,7 +1,5 @@
-function AstGenerator(stream){
-    this.stream = stream;
-    this.pos = 0;
-    this.length = stream.length;
+function AstGenerator(tokenizer){
+    this.tokenizer = tokenizer;
     this.symbol = {
         type: this.TYPES.SourceElement
     };
@@ -12,6 +10,8 @@ function AstGenerator(stream){
     };
     this.stack = [this.global, this.symbol];
     this.head = this.symbol;
+    this.queue = [];
+    this.expectsRegExp = true;
 }
 
 AstGenerator.prototype = {
@@ -119,17 +119,23 @@ AstGenerator.prototype = {
         console.log("AST: " + msg);
     },
     readNext: function(){
-        return this.stream[this.pos++];
-    },
-    peekNext: function(){
-        var pos = this.pos, token;
-        while ((token = this.stream[pos++])) {
-            if (token.type != Tokenizer.prototype.TYPES.LineTerminator) {
-                break;
+        for (;;) {
+            token = this.tokenizer.read(this.expectsRegExp);
+            if (token.type != Tokenizer.prototype.TYPES.LineTerminator && token.type != Tokenizer.prototype.TYPES.Whitespace) {
+                return token;
             }
         }
-        return token ||
-        {
+    },
+    peekNext: function(){
+        var token;
+        for (;;) {
+            token = this.tokenizer.read(this.expectsRegExp);
+            this.queue.push(token);
+            if (token.type != Tokenizer.prototype.TYPES.LineTerminator && token.type != Tokenizer.prototype.TYPES.Whitespace) {
+                return token;
+            }
+        }
+        return {
             type: Tokenizer.prototype.TYPES.LineTerminator
         };
     },
@@ -170,12 +176,59 @@ AstGenerator.prototype = {
                 ast.pop();
             }
         }
+        
+        
         //try {
-        while (this.pos < this.length) {
-            this.token = token = this.readNext();
+        for (;;) {
+            if (this.queue.length) {
+                token = this.queue.shift();
+            }
+            else {
+                switch (previousToken.type) {
+                    case TYPES.BooleanLiteral:
+                    case TYPES.StringLiteral:
+                    case TYPES.NullLiteral:
+                    case TYPES.NumericLiteral:
+                    case TYPES.RegularExpressionLiteral:
+                    case TYPES.Identifier:
+                        this.expectsRegExp = false;
+                        break;
+                    case TYPES.Semicolon:
+                    case TYPES.Keyword:
+                        this.expectsRegExp = true;
+                        break;
+                    case TYPES.Punctuator:
+                        switch (previousToken.data) {
+                            case "}":
+                                symbol = this.head.stream && this.head.stream.length ? this.head.stream[this.head.stream.length - 1] : this.head;
+                                switch (symbol.type) {
+                                    case T.Block:
+                                    case T.FunctionDeclaration:
+                                    case T.FunctionExpression:
+                                        this.expectsRegExp = true;
+                                        break;
+                                    default:
+                                        this.expectsRegExp = false;
+                                }
+                                break;
+                            case ")":
+                            case "]":
+                                this.expectsRegExp = false;
+                                break;
+                            default:
+                                this.expectsRegExp = true;
+                        }
+                        break;
+                }
+                token = this.tokenizer.read(this.expectsRegExp);
+            }
+            if (token.type == TYPES.EOF) {
+                break;
+            }
+            this.token = token;
             head = this.head;
             
-            if (token.type == TYPES.CommentMultiLine || token.type == TYPES.CommentMultiLine) {
+            if (token.type == TYPES.CommentMultiLine || token.type == TYPES.CommentMultiLine || token.type == TYPES.Whitespace) {
                 continue;
             }
             // todo: implement ASI
@@ -484,7 +537,7 @@ AstGenerator.prototype = {
                         });
                     }
                     else {
-                        this.add({
+                        symbol = this.add({
                             type: T.StringLiteral,
                             value: token.value,
                             pos: token.pos
@@ -493,7 +546,7 @@ AstGenerator.prototype = {
                     break;
                     
                 case TYPES.NumericLiteral:
-                    this.add({
+                    symbol = this.add({
                         type: T.NumericLiteral,
                         value: token.value,
                         pos: token.pos
@@ -502,7 +555,7 @@ AstGenerator.prototype = {
                     break;
                     
                 case TYPES.BooleanLiteral:
-                    this.add({
+                    symbol = this.add({
                         type: T.BooleanLiteral,
                         value: token.data,
                         pos: token.pos
@@ -510,7 +563,7 @@ AstGenerator.prototype = {
                     break;
                     
                 case TYPES.RegularExpressionLiteral:
-                    this.add({
+                    symbol = this.add({
                         type: T.RegularExpressionLiteral,
                         value: token.value,
                         pos: token.pos
@@ -594,7 +647,7 @@ AstGenerator.prototype = {
                         case "++":
                         case "--":
                             if (symbol.type == T.Identifier) {
-                                this.add({
+                                symbol = this.add({
                                     type: T.PostfixExpression,
                                     value: token.data,
                                     stream: [this.take()],
@@ -602,7 +655,7 @@ AstGenerator.prototype = {
                                 });
                             }
                             else {
-                                this.push(this.add({
+                                symbol = this.push(this.add({
                                     type: T.UnaryExpression,
                                     value: token.data
                                 }));
